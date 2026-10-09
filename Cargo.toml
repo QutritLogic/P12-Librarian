@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli", "app/src-tauri"]
+# The GUI needs webkit2gtk; keep plain `cargo build`/`cargo test` working without it.
+default-members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli"]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+p12-core = { path = "crates/p12-core" }
+p12-midi = { path = "crates/p12-midi" }
+thiserror = "2"

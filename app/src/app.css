@@ -1,0 +1,328 @@
+/* Themes set colours on whatever element carries data-theme, so the theme
+   picker can preview every theme side by side. "system" is the default:
+   light or dark, following the desktop. */
+:root,
+[data-theme='system'] {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eceef1;
+  --border: #d5d8dd;
+  --hover: #f0f3f7;
+  --text: #1d2228;
+  --muted: #6b7380;
+  --accent: #2f6fd6;
+  --on-accent: #ffffff;
+  --ok: #2e9e5b;
+  --danger: #d0453a;
+  --highlight: #ffe07a;
+  color-scheme: light;
+}
+
+:root {
+  --mono: ui-monospace, 'DejaVu Sans Mono', monospace;
+  --ui-font: system-ui, 'Ubuntu', sans-serif;
+}
+
+/* Fonts. Like themes they apply to any element with data-font, so the
+   Appearance dialog can preview them. Fira Code comes from @fontsource;
+   JetBrains Mono and Hack are bundled Nerd Fonts (licences next to the
+   files). An installed copy of the same Nerd Font is preferred. */
+@font-face {
+  font-family: 'JetBrainsMono NF Bundled';
+  src: url('./assets/fonts/jetbrains-mono/JetBrainsMonoNerdFont-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'JetBrainsMono NF Bundled';
+  src: url('./assets/fonts/jetbrains-mono/JetBrainsMonoNerdFont-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+}
+@font-face {
+  font-family: 'Hack NF Bundled';
+  src: url('./assets/fonts/hack/HackNerdFont-Regular.ttf') format('truetype');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Hack NF Bundled';
+  src: url('./assets/fonts/hack/HackNerdFont-Bold.ttf') format('truetype');
+  font-weight: 700;
+}
+
+[data-font='system'] {
+  --ui-font: system-ui, 'Ubuntu', sans-serif;
+  --mono: ui-monospace, 'DejaVu Sans Mono', monospace;
+}
+[data-font='fira'] {
+  --ui-font: 'FiraCode Nerd Font', 'Fira Code', monospace;
+  --mono: var(--ui-font);
+}
+[data-font='jetbrains-mono'] {
+  --ui-font: 'JetBrainsMono Nerd Font', 'JetBrainsMono NF Bundled', monospace;
+  --mono: var(--ui-font);
+}
+[data-font='hack'] {
+  --ui-font: 'Hack Nerd Font', 'Hack NF Bundled', monospace;
+  --mono: var(--ui-font);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root,
+  [data-theme='system'] {
+    --bg: #1e2023;
+    --surface: #26292d;
+    --surface-2: #2f3337;
+    --border: #3b4046;
+    --hover: #30353a;
+    --text: #e3e6ea;
+    --muted: #9198a1;
+    --accent: #4a86e8;
+    --ok: #4cc27c;
+    --danger: #f06a5f;
+    --highlight: #7a5f12;
+    color-scheme: dark;
+  }
+}
+
+/* Dracula (draculatheme.com). --muted is a lighter shade of the "comment"
+   colour #6272a4, which is too faint for text at this size. */
+[data-theme='dracula'] {
+  --bg: #21222c;
+  --surface: #282a36;
+  --surface-2: #343746;
+  --border: #44475a;
+  --hover: #3a3c4e;
+  --text: #f8f8f2;
+  --muted: #a3aacc;
+  --accent: #bd93f9;
+  --on-accent: #282a36;
+  --ok: #50fa7b;
+  --danger: #ff5555;
+  --highlight: #5c5a2e;
+  color-scheme: dark;
+}
+
+/* Catppuccin Mocha (catppuccin.com), with Mauve as the accent. */
+[data-theme='catppuccin-mocha'] {
+  --bg: #181825;
+  --surface: #1e1e2e;
+  --surface-2: #313244;
+  --border: #45475a;
+  --hover: #2a2b3c;
+  --text: #cdd6f4;
+  --muted: #a6adc8;
+  --accent: #cba6f7;
+  --on-accent: #11111b;
+  --ok: #a6e3a1;
+  --danger: #f38ba8;
+  --highlight: #5b5340;
+  color-scheme: dark;
+}
+
+/* The themes below are derived from kitty-themes with the same rules:
+   surface = background, text = foreground, the shades in between are mixes
+   of the two, ok/danger are ANSI green/red, and colours are lifted where
+   needed to keep text readable (4.5:1; accents 3:1). */
+
+/* Tokyo Night by Folke Lemaitre (MIT), colours from kitty-themes */
+[data-theme='tokyo-night'] {
+  --bg: #15161f;
+  --surface: #1a1b26;
+  --surface-2: #292b39;
+  --border: #3b3e4f;
+  --hover: #242632;
+  --text: #c0caf5;
+  --muted: #8e96b7;
+  --accent: #7aa2f7;
+  --on-accent: #1a1b26;
+  --ok: #9ece6a;
+  --danger: #f7768e;
+  --highlight: #5f4f3d;
+  color-scheme: dark;
+}
+
+/* Gruvbox Dark by Pavel Pertsev (MIT/X11), colours from kitty-themes */
+[data-theme='gruvbox-dark'] {
+  --bg: #212121;
+  --surface: #282828;
+  --surface-2: #3a3834;
+  --border: #4f4c44;
+  --hover: #343330;
+  --text: #ebdbb2;
+  --muted: #b0a589;
+  --accent: #d79921;
+  --on-accent: #282828;
+  --ok: #98971a;
+  --danger: #e07b77;
+  --highlight: #655026;
+  color-scheme: dark;
+}
+
+/* OneDark-Pro by VictorPL (https://github.com/VictorPLopes) (MIT), colours from kitty-themes */
+[data-theme='one-dark-pro'] {
+  --bg: #21242b;
+  --surface: #282c34;
+  --surface-2: #343841;
+  --border: #424750;
+  --hover: #30343c;
+  --text: #abb2bf;
+  --muted: #9ba2ae;
+  --accent: #61afef;
+  --on-accent: #282c34;
+  --ok: #98c379;
+  --danger: #e47e86;
+  --highlight: #4c433f;
+  color-scheme: dark;
+}
+
+/* Rosé Pine by mvllow (MIT), colours from kitty-themes */
+[data-theme='rose-pine'] {
+  --bg: #14131e;
+  --surface: #191724;
+  --surface-2: #2b2937;
+  --border: #413f4e;
+  --hover: #252330;
+  --text: #e0def4;
+  --muted: #a4a2b6;
+  --accent: #c4a7e7;
+  --on-accent: #191724;
+  --ok: #6094a8;
+  --danger: #eb6f92;
+  --highlight: #665241;
+  color-scheme: dark;
+}
+
+/* Kanagawa by Tommaso Laurenzi (MIT), colours from kitty-themes */
+[data-theme='kanagawa'] {
+  --bg: #191921;
+  --surface: #1f1f28;
+  --surface-2: #303035;
+  --border: #454445;
+  --hover: #2a2a31;
+  --text: #dcd7ba;
+  --muted: #a3a08e;
+  --accent: #7e9cd8;
+  --on-accent: #1f1f28;
+  --ok: #76946a;
+  --danger: #d06b6e;
+  --highlight: #574d40;
+  color-scheme: dark;
+}
+
+/* Everforest Dark Medium by Sainnhe Park (MIT), colours from kitty-themes */
+[data-theme='everforest-dark'] {
+  --bg: #252b30;
+  --surface: #2d353b;
+  --surface-2: #3c4245;
+  --border: #4e5251;
+  --hover: #373e42;
+  --text: #d3c6aa;
+  --muted: #b5ac96;
+  --accent: #a7c080;
+  --on-accent: #2d353b;
+  --ok: #a7c080;
+  --danger: #e67e80;
+  --highlight: #525249;
+  color-scheme: dark;
+}
+
+/* Solarized Dark by Ethan Schoonover (MIT), colours from kitty-themes.
+   Hand-tuned: text is Solarized's emphasised base1 and --muted its body text
+   base0, since base0 alone is too faint to have a dimmer shade; the search
+   highlight is a dark yellow that stays readable. */
+[data-theme='solarized-dark'] {
+  --bg: #00232c;
+  --surface: #002b36;
+  --surface-2: #0c343f;
+  --border: #1a4049;
+  --hover: #08313c;
+  --text: #93a1a1;
+  --muted: #839496;
+  --accent: #2075c7;
+  --on-accent: #ffffff;
+  --ok: #839723;
+  --danger: #e3767b;
+  --highlight: #36381a;
+  color-scheme: dark;
+}
+
+/* Catppuccin-Latte by Pocco81 (https://github.com/Pocco81) (MIT), colours from kitty-themes */
+[data-theme='catppuccin-latte'] {
+  --bg: #e3e5e9;
+  --surface: #eff1f5;
+  --surface-2: #e0e2e8;
+  --border: #ced1d9;
+  --hover: #e5e7ed;
+  --text: #4c4f69;
+  --muted: #60627a;
+  --accent: #1e66f5;
+  --on-accent: #ffffff;
+  --ok: #317c21;
+  --danger: #d20f39;
+  --highlight: #e8c494;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.4 var(--ui-font);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+button {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  background: var(--accent);
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+}

@@ -1,0 +1,10 @@
+/target
+/backups
+*.syx
+
+# Reference material, not ours to redistribute
+*.pdf
+!app/src-tauri/resources/user-guide.pdf
+
+# Source archives dropped into the folder
+*.zip

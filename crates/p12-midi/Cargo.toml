@@ -1,0 +1,11 @@
+[package]
+name = "p12-midi"
+description = "MIDI transport for talking to a Prophet 12"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+p12-core.workspace = true
+thiserror.workspace = true
+midir = "0.11"

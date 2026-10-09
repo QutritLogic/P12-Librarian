@@ -1,0 +1,17 @@
+[package]
+name = "p12-cli"
+description = "Command-line librarian for the Prophet 12"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "p12"
+path = "src/main.rs"
+
+[dependencies]
+p12-core.workspace = true
+p12-midi.workspace = true
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+clap = { version = "4", features = ["derive"] }
