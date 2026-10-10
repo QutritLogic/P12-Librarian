@@ -8,7 +8,7 @@
   import logoOnDark from '../assets/brand/lockup-on-dark.svg';
   import logoOnLight from '../assets/brand/lockup-on-light.svg';
 
-  const REPOSITORY = 'https://github.com/QutritLogic/P12-Librarian';
+  const WEBSITE = 'https://qutrit.se/p12-librarian/';
   const PRODUCT_PAGE = 'https://sequential.com/product/prophet-12-keyboard/';
   const EMAIL = 'qutritlogic@proton.me';
 
@@ -77,17 +77,18 @@
   <p class="muted small">Built with Rust, Tauri, Svelte and midir.</p>
   <p class="muted small">
     Themes after Dracula, Catppuccin, Tokyo Night, Gruvbox, One Dark Pro, Rosé Pine, Kanagawa, Everforest and
-    Solarized (MIT). Fonts: Fira Code, JetBrains Mono and Hack Nerd Fonts (OFL / MIT). See THIRD-PARTY-NOTICES.md.
+    Solarized (MIT). Fonts: Fira Code, JetBrains Mono and Hack Nerd Fonts (OFL / MIT). See Help → Licences.
   </p>
   <p class="muted small">
     Not affiliated with Sequential or Dave Smith Instruments. Prophet 12 is a trademark of its owner.
   </p>
   <p class="muted small">
-    Provided as is, without warranty; use at your own risk. See Help → Disclaimer.
+    Freeware: free to use, not to redistribute or modify; get it from qutrit.se. Provided as is, without
+    warranty; use at your own risk. See Help → Licences and Help → Disclaimer.
   </p>
 
   {#snippet buttons()}
-    <button onclick={() => openUrl(REPOSITORY)} title={REPOSITORY}>Source code on GitHub</button>
+    <button onclick={() => openUrl(WEBSITE)} title={WEBSITE}>Website: qutrit.se</button>
     <button class="primary" onclick={onClose} title="Close (Esc)">Close</button>
   {/snippet}
 </Modal>

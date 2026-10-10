@@ -9,6 +9,7 @@
   import RestoreDialog from './lib/RestoreDialog.svelte';
   import SwapDialog from './lib/SwapDialog.svelte';
   import DisclaimerDialog from './lib/DisclaimerDialog.svelte';
+  import LicencesDialog from './lib/LicencesDialog.svelte';
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
   import InitDialog from './lib/InitDialog.svelte';
   import LayerBDialog from './lib/LayerBDialog.svelte';
@@ -61,7 +62,7 @@
   let message = $state<{ text: string; error: boolean; undo?: string } | null>(null);
   let backupDir = $state('');
   let writing = $state<{ patches: Patch[]; start: string | null } | null>(null);
-  let dialog = $state<'about' | 'disclaimer' | 'appearance' | 'preferences' | 'restore' | null>(null);
+  let dialog = $state<'about' | 'disclaimer' | 'licences' | 'appearance' | 'preferences' | 'restore' | null>(null);
   /** True until the user accepts the disclaimer; nothing touches the synth before that. */
   let mustAccept = $state(false);
   let renaming = $state<{ pane: Pane; title: string; patches: Patch[]; proposed: string[] } | null>(null);
@@ -633,7 +634,8 @@
 
   function menuAction(id: string) {
     if (mustAccept) return;
-    else if (id === 'about' || id === 'disclaimer' || id === 'appearance' || id === 'preferences') dialog = id;
+    else if (id === 'about' || id === 'disclaimer' || id === 'licences' || id === 'appearance' || id === 'preferences')
+      dialog = id;
     else if (id === 'restore_points') dialog = 'restore';
     else if (busy || writing || renaming || initializing || layerCopy) return;
     else if (id === 'open') openFile();
@@ -948,6 +950,8 @@
 
 {#if mustAccept}
   <DisclaimerDialog accept onAccept={acceptDisclaimer} onQuit={() => api.quit()} />
+{:else if dialog === 'licences'}
+  <LicencesDialog onClose={() => (dialog = null)} />
 {:else if dialog === 'disclaimer'}
   <DisclaimerDialog onClose={() => (dialog = null)} />
 {:else if dialog === 'restore'}

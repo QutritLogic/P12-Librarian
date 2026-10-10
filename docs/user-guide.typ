@@ -602,22 +602,24 @@ For the curious, and for anyone building on this work.
 - The *Device Inquiry* reply only reports the main OS version (1 for OS 1.4.2.3); the Global screen shows the
   full version.
 
-Source code: #link("https://github.com/QutritLogic/P12-Librarian")
-
 = About
 
 #image("../app/src/assets/brand/lockup-on-light.svg", width: 5cm)
 
 P12 Librarian was created by *Claude* (Opus 5.5), an AI model made by Anthropic, who wrote the code,
 together with *Qutrit*, who had the idea, made the design decisions and tested everything on a real Prophet 12.
-Contact: #link("mailto:qutritlogic@proton.me")[qutritlogic\@proton.me].
+Contact: #link("mailto:qutritlogic@proton.me")[qutritlogic\@proton.me]. Website, with new versions:
+#link("https://qutrit.se/p12-librarian/")[qutrit.se/p12-librarian].
 
 The *Prophet 12* was designed by *Dave Smith Instruments (DSI)*, founded by Dave Smith, and released in 2013. The
 company is now called Sequential:
 #link("https://sequential.com/product/prophet-12-keyboard/").
 
 This project is not affiliated with Sequential or Dave Smith Instruments. Prophet 12 is a trademark of its owner.
-Released under the MIT license.
+
+P12 Librarian is *freeware*: free to use, including for professional work, but not to redistribute or modify.
+Get it from the website. The full licence, and the licences of the libraries, fonts and themes it includes, are
+under #ui[Help → Licences].
 
 // The text comes from DISCLAIMER.md, the same file the app shows.
 = Disclaimer <disclaimer>

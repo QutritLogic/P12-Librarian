@@ -1,7 +1,18 @@
 # Third-Party Notices
 
-P12 Librarian includes colour themes and fonts made by others. Their
-authors and licences are listed here.
+P12 Librarian includes libraries, colour themes and fonts made by others,
+under their own licences. P12 Librarian itself is freeware (see LICENSE);
+nothing in its licence limits the rights these licences give you.
+
+## Libraries
+
+The licences of the Rust and JavaScript libraries built into the app and the
+`p12` tool are listed in full in `licenses/rust.md` and
+`licenses/javascript.md` (in the app: Help → Licences; the Debian package
+installs them in `/usr/share/doc/p12-librarian/licenses/`). The five libraries
+under the Mozilla Public License 2.0 (cssparser, cssparser-macros, dtoa-short,
+option-ext and selectors) are used unmodified; their source code is available
+from crates.io.
 
 ## Colour themes
 

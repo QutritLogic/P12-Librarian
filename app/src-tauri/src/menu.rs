@@ -87,6 +87,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let help = SubmenuBuilder::new(app, "Help")
         .item(&item("help", "User guide (PDF)", Some("F1"))?)
         .item(&item("disclaimer", "Disclaimer", None)?)
+        .item(&item("licences", "Licences", None)?)
         .separator()
         .item(&item("about", "About P12 Librarian", None)?)
         .build()?;

@@ -7,7 +7,9 @@ default-members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli"]
 [workspace.package]
 version = "0.5.0"
 edition = "2024"
-license = "MIT"
+# Freeware, see LICENSE. Not published to crates.io.
+license-file = "LICENSE"
+publish = false
 
 [workspace.dependencies]
 p12-core = { path = "crates/p12-core" }

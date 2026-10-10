@@ -3,7 +3,8 @@ name = "p12-core"
 description = "Prophet 12 SysEx protocol: packing, program model, message parsing, .syx files"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [dependencies]
 thiserror.workspace = true

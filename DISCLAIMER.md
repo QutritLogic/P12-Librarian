@@ -20,9 +20,9 @@ TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHOR,
 
 Some jurisdictions do not allow certain warranties to be excluded or certain liability to be limited. In those jurisdictions the exclusions and limitations above apply to the fullest extent permitted by law, and nothing in this disclaimer limits liability that cannot lawfully be limited. If any provision of this disclaimer is held invalid or unenforceable, the remaining provisions remain in full force and effect.
 
-## 6. Free, non-commercial software
+## 6. Free of charge, non-commercial
 
-The Software is provided free of charge, outside of any commercial activity, as open-source software under the MIT License. This disclaimer supplements the warranty disclaimer and limitation of liability in the MIT License and does not replace them.
+The Software is provided free of charge, outside of any commercial activity, under the P12 Librarian Freeware Licence that comes with it (LICENSE). This disclaimer forms part of that licence.
 
 ## 7. No affiliation
 

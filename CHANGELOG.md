@@ -13,6 +13,19 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- Help → Licences shows P12 Librarian's licence and the full licences of the libraries,
+  fonts and themes it includes. The Debian package also installs them in
+  `/usr/share/doc/p12-librarian/`.
+
+### Changed
+
+- P12 Librarian is now freeware: free to use, including professionally, but not to
+  redistribute or modify. Earlier versions were MIT-licensed. You're asked to accept
+  the disclaimer once more, as it refers to the new licence.
+- The About box links to the website, qutrit.se, instead of the source code.
+
 ## [0.5.0] - 2026-10-10
 
 ### Added

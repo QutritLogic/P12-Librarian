@@ -3,7 +3,8 @@ name = "p12-librarian"
 description = "P12 Librarian desktop app"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 authors = ["Qutrit <qutritlogic@proton.me>"]
 
 [build-dependencies]
