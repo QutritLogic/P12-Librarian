@@ -27,6 +27,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             Some("CmdOrCtrl+B"),
         )?)
         .separator()
+        .item(&item(
+            "preferences",
+            "Preferences…",
+            Some("CmdOrCtrl+Comma"),
+        )?)
+        .separator()
         .item(&item("quit", "Quit", Some("CmdOrCtrl+Q"))?)
         .build()?;
 
@@ -38,7 +44,9 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         names
             .iter()
             .enumerate()
-            .map(|(i, name)| CheckMenuItemBuilder::with_id(format!("{prefix}:{i}"), *name).build(app))
+            .map(|(i, name)| {
+                CheckMenuItemBuilder::with_id(format!("{prefix}:{i}"), *name).build(app)
+            })
             .collect::<tauri::Result<Vec<_>>>()
     };
     let fonts = checks("font", &Font::ALL.map(|(_, name)| name))?;
@@ -58,13 +66,21 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .item(&item("zoom_out", "Zoom out    (Ctrl −)", None)?)
         .item(&item("zoom_reset", "Actual size    (Ctrl 0)", None)?)
         .separator()
-        .item(&item("appearance", "Appearance…", Some("CmdOrCtrl+Shift+A"))?)
+        .item(&item(
+            "appearance",
+            "Appearance…",
+            Some("CmdOrCtrl+Shift+A"),
+        )?)
         .item(&theme_menu)
         .item(&font_menu)
         .build()?;
     app.manage(AppearanceItems {
         fonts: Font::ALL.iter().map(|(font, _)| *font).zip(fonts).collect(),
-        themes: Theme::ALL.iter().map(|(theme, _)| *theme).zip(themes).collect(),
+        themes: Theme::ALL
+            .iter()
+            .map(|(theme, _)| *theme)
+            .zip(themes)
+            .collect(),
     });
 
     let help = SubmenuBuilder::new(app, "Help")
@@ -105,7 +121,9 @@ pub fn handle(app: &AppHandle, event: MenuEvent) {
         // Re-applying also restores the check marks GTK toggled on click.
         id if id.starts_with("font:") || id.starts_with("theme:") => {
             let (kind, index) = id.split_once(':').unwrap_or_default();
-            let Ok(index) = index.parse::<usize>() else { return };
+            let Ok(index) = index.parse::<usize>() else {
+                return;
+            };
             match kind {
                 "font" => {
                     if let Some((font, _)) = Font::ALL.get(index) {

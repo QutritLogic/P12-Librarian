@@ -31,7 +31,8 @@ pub enum Message {
     },
     /// The current (unsaved) program; sending one only loads it for playing.
     EditBufferDump(Program),
-    /// 50 nibbles for 25 Global parameters. Transmit-only on the synth.
+    /// One byte per Global parameter (see `global_parameter`). Transmit-only
+    /// on the synth.
     GlobalsDump(Vec<u8>),
     RequestProgram(Location),
     RequestEditBuffer,
@@ -42,6 +43,17 @@ pub enum Message {
     DeviceInquiryReply {
         version: u8,
     },
+}
+
+/// Index of the MIDI Channel parameter (NRPN 1026) in a Global Parameters
+/// dump: 0 = All, 1-16 = that channel.
+pub const GLOBAL_MIDI_CHANNEL: usize = 2;
+
+/// Global parameter `index` (NRPN 1024 + `index`) from the data of a
+/// Global Parameters dump. The manual describes 50 nibbles, but OS 1.4.2.3
+/// sends one byte per parameter (26 bytes), verified on a real synth.
+pub fn global_parameter(data: &[u8], index: usize) -> Option<u8> {
+    data.get(index).copied()
 }
 
 impl Message {
@@ -206,6 +218,16 @@ mod tests {
             Message::parse(&reply).unwrap(),
             Message::DeviceInquiryReply { version: 0x14 }
         );
+    }
+
+    #[test]
+    fn reads_global_parameters() {
+        // The start of a real dump: coarse tune 12, fine tune 50, MIDI channel All.
+        let data = [0x0C, 0x32, 0x00];
+        assert_eq!(global_parameter(&data, 0), Some(12));
+        assert_eq!(global_parameter(&data, 1), Some(50));
+        assert_eq!(global_parameter(&data, GLOBAL_MIDI_CHANNEL), Some(0));
+        assert_eq!(global_parameter(&data, 3), None);
     }
 
     #[test]

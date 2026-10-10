@@ -8,18 +8,27 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Display;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard};
+use std::thread;
 use std::time::Duration;
 
+use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter};
 use p12_core::syx::{self, Entry};
 use p12_core::{Location, Message, Program, name, parse_selection};
 use p12_midi::Synth;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::settings::SettingsState;
+
 /// Pause after each write so the synth can store the program (tested with OS 1.x).
 const WRITE_SETTLE: Duration = Duration::from_millis(150);
+
+/// Pause between loading a patch into the edit buffer and playing the
+/// audition note, so the note sounds with the new patch.
+const AUDITION_LOAD_SETTLE: Duration = Duration::from_millis(50);
+const AUDITION_VELOCITY: u8 = 100;
 
 type CmdResult<T> = Result<T, String>;
 
@@ -38,6 +47,26 @@ pub struct AppState {
     synth: Mutex<Option<Synth>>,
     library: Mutex<Library>,
     cancel: AtomicBool,
+    /// The audition note that is still sounding, if any.
+    sounding: Mutex<Option<SoundingNote>>,
+    /// Counts audition notes, so a timer only stops the note it started.
+    note_generation: AtomicU64,
+}
+
+#[derive(Clone, Copy)]
+struct SoundingNote {
+    generation: u64,
+    channel: u8,
+    note: u8,
+}
+
+/// Stops the audition note, if one is sounding. Called before every use of
+/// the synth so a note never hangs on through a read or write. Lock order:
+/// `synth`, then `sounding`.
+fn stop_note(state: &AppState, synth: &mut Synth) {
+    if let Some(note) = lock(&state.sounding).take() {
+        let _ = synth.note_off(note.channel, note.note);
+    }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -155,7 +184,17 @@ async fn blocking<T: Send + 'static>(
 fn with_synth<T>(state: &AppState, job: impl FnOnce(&mut Synth) -> CmdResult<T>) -> CmdResult<T> {
     let mut guard = lock(&state.synth);
     let synth = guard.as_mut().ok_or("Not connected to a Prophet 12")?;
+    stop_note(state, synth);
     job(synth)
+}
+
+/// Closes the connection, stopping any audition note first.
+fn close_synth(state: &AppState) {
+    let mut guard = lock(&state.synth);
+    if let Some(synth) = guard.as_mut() {
+        stop_note(state, synth);
+    }
+    *guard = None;
 }
 
 /// Reads programs one by one, calling `each` as they arrive. Stops early if cancelled.
@@ -223,7 +262,7 @@ pub fn list_ports() -> CmdResult<Ports> {
 #[tauri::command]
 pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<u8> {
     blocking(app, move |_, state| {
-        *lock(&state.synth) = None; // close any previous connection first
+        close_synth(state); // close any previous connection first
         let mut synth = Synth::connect(&input.to_string(), &output.to_string()).str_err()?;
         let version = synth
             .identify()
@@ -236,7 +275,7 @@ pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<u
 
 #[tauri::command]
 pub fn disconnect(state: tauri::State<'_, AppState>) {
-    *lock(&state.synth) = None;
+    close_synth(&state);
 }
 
 #[tauri::command]
@@ -340,14 +379,69 @@ pub fn save_syx_split(
     Ok(())
 }
 
-/// Loads a patch into the edit buffer; nothing is stored on the synth.
+/// Loads a patch into the edit buffer, nothing is stored on the synth, and
+/// plays a note with it if the audition settings ask for one.
 #[tauri::command]
 pub async fn audition(app: AppHandle, id: u32) -> CmdResult<()> {
-    blocking(app, move |_, state| {
+    let settings = app
+        .state::<SettingsState>()
+        .0
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .audition;
+    blocking(app, move |app, state| {
         let program = lock(&state.library).get(id)?.program.clone();
-        with_synth(state, |synth| synth.send_edit_buffer(&program).str_err())
+        let started = with_synth(state, |synth| {
+            synth.send_edit_buffer(&program).str_err()?;
+            if !settings.play_note {
+                return Ok(None);
+            }
+            let channel = match settings.channel {
+                0 => synth_channel(synth),
+                channel => channel,
+            };
+            thread::sleep(AUDITION_LOAD_SETTLE);
+            synth
+                .note_on(channel, settings.note, AUDITION_VELOCITY)
+                .str_err()?;
+            let note = SoundingNote {
+                generation: state.note_generation.fetch_add(1, Ordering::SeqCst) + 1,
+                channel,
+                note: settings.note,
+            };
+            *lock(&state.sounding) = Some(note);
+            Ok(Some(note.generation))
+        })?;
+        if let Some(generation) = started {
+            let app = app.clone();
+            let length = Duration::from_millis(settings.length_ms.into());
+            thread::spawn(move || {
+                thread::sleep(length);
+                let state = app.state::<AppState>();
+                let mut guard = lock(&state.synth);
+                let mut sounding = lock(&state.sounding);
+                // A newer audition, or any other use of the synth, has already stopped it.
+                if sounding.is_some_and(|note| note.generation == generation)
+                    && let (Some(note), Some(synth)) = (sounding.take(), guard.as_mut())
+                {
+                    let _ = synth.note_off(note.channel, note.note);
+                }
+            });
+        }
+        Ok(())
     })
     .await
+}
+
+/// The channel the synth receives on, from its Global parameters: channel 1
+/// when it is set to All or can't be asked.
+fn synth_channel(synth: &mut Synth) -> u8 {
+    synth
+        .fetch_globals()
+        .ok()
+        .and_then(|globals| global_parameter(&globals, GLOBAL_MIDI_CHANNEL))
+        .filter(|channel| (1..=16).contains(channel))
+        .unwrap_or(1)
 }
 
 #[derive(Serialize)]

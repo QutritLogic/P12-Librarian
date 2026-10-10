@@ -23,10 +23,26 @@ export interface Progress {
 export type ThemeId = string;
 export type FontId = string;
 
+export interface AuditionSettings {
+  play_note: boolean;
+  /** MIDI note number; 60 is C3, the Prophet 12's middle C. */
+  note: number;
+  length_ms: number;
+  /** 1-16, or 0 for the channel set on the synth. */
+  channel: number;
+}
+
 export interface Settings {
   zoom: number;
   font: FontId;
   theme: ThemeId;
+  audition: AuditionSettings;
+}
+
+/** Note name as the Prophet 12 shows it: C3 is middle C (MIDI note 60). */
+export function noteName(note: number): string {
+  const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  return `${names[note % 12]}${Math.floor(note / 12) - 2}`;
 }
 
 export interface AppearanceOptions {
@@ -72,6 +88,7 @@ export const api = {
   zoom: (direction: number) => invoke<void>('zoom', { direction }),
   appearanceOptions: () => invoke<AppearanceOptions>('appearance_options'),
   setAppearance: (change: { theme?: ThemeId; font?: FontId }) => invoke<void>('set_appearance', change),
+  setAudition: (audition: AuditionSettings) => invoke<void>('set_audition', { audition }),
   disclaimerAccepted: () => invoke<boolean>('disclaimer_accepted'),
   acceptDisclaimer: () => invoke<void>('accept_disclaimer'),
   quit: () => invoke<void>('quit'),

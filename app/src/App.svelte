@@ -5,6 +5,7 @@
   import { open, save } from '@tauri-apps/plugin-dialog';
   import AboutDialog from './lib/AboutDialog.svelte';
   import AppearanceDialog from './lib/AppearanceDialog.svelte';
+  import PreferencesDialog from './lib/PreferencesDialog.svelte';
   import DisclaimerDialog from './lib/DisclaimerDialog.svelte';
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
   import InitDialog from './lib/InitDialog.svelte';
@@ -21,12 +22,14 @@
     errorText,
     isUserSlot,
     matchesSearch,
+    noteName,
     onProgress,
     searchTerms,
     type Patch,
     type Ports,
     type Progress,
     type RenameRequest,
+    type AuditionSettings,
     type Settings,
     type WriteRequest,
   } from './lib/api';
@@ -54,7 +57,7 @@
   let message = $state<{ text: string; error: boolean } | null>(null);
   let backupDir = $state('');
   let writing = $state<{ patches: Patch[]; start: string | null } | null>(null);
-  let dialog = $state<'about' | 'disclaimer' | 'appearance' | null>(null);
+  let dialog = $state<'about' | 'disclaimer' | 'appearance' | 'preferences' | null>(null);
   /** True until the user accepts the disclaimer; nothing touches the synth before that. */
   let mustAccept = $state(false);
   let renaming = $state<{ pane: Pane; title: string; patches: Patch[]; proposed: string[] } | null>(null);
@@ -267,7 +270,8 @@
     if (!patch) return;
     return run('Auditioning', async () => {
       await api.audition(patch.id);
-      info(`Playing "${patch.name}" from the edit buffer. Nothing was stored.`);
+      const note = auditionSettings.play_note ? `, playing ${noteName(auditionSettings.note)}` : '';
+      info(`Loaded "${patch.name}" into the edit buffer${note}. Nothing was stored.`);
     });
   }
 
@@ -450,9 +454,11 @@
 
   let zoomLevel = 1;
   let appearance = $state({ theme: 'system', font: 'fira' });
+  let auditionSettings = $state<AuditionSettings>({ play_note: true, note: 60, length_ms: 1000, channel: 0 });
 
   function applySettings(settings: Settings) {
     appearance = { theme: settings.theme, font: settings.font };
+    auditionSettings = settings.audition;
     document.documentElement.dataset.font = settings.font;
     document.documentElement.dataset.theme = settings.theme;
     if (settings.zoom !== zoomLevel) info(`Zoom ${Math.round(settings.zoom * 100)}%`);
@@ -486,7 +492,15 @@
     } else if (event.key === 'F2') {
       event.preventDefault();
       startRename(activePane);
+    } else if (event.key === ' ' && !event.ctrlKey && !isTextField(event.target)) {
+      // Space auditions the first selected patch in the active pane.
+      event.preventDefault();
+      if (connected && !busy) audition(activePane === 'synth' ? selectedSynth[0] : selectedFile[0]);
     }
+  }
+
+  function isTextField(target: EventTarget | null): boolean {
+    return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
   }
 
   /** Hides the webview's own menu (Reload, Inspect…) except in text fields. */
@@ -496,7 +510,7 @@
 
   function menuAction(id: string) {
     if (mustAccept) return;
-    else if (id === 'about' || id === 'disclaimer' || id === 'appearance') dialog = id;
+    else if (id === 'about' || id === 'disclaimer' || id === 'appearance' || id === 'preferences') dialog = id;
     else if (busy || writing || renaming || initializing || layerCopy) return;
     else if (id === 'open') openFile();
     else if (id === 'backup') {
@@ -733,7 +747,7 @@
   {:else if message}
     <span class:error={message.error}>{message.text}</span>
   {:else}
-    <span class="muted">Double-click a patch to audition it. Right-click for more, e.g. Cleanify names. Press F1 for the user guide.</span>
+    <span class="muted">Double-click a patch, or press Space, to audition it. Right-click for more, e.g. Cleanify names. Press F1 for the user guide.</span>
   {/if}
 </footer>
 
@@ -789,6 +803,8 @@
   <DisclaimerDialog accept onAccept={acceptDisclaimer} onQuit={() => api.quit()} />
 {:else if dialog === 'disclaimer'}
   <DisclaimerDialog onClose={() => (dialog = null)} />
+{:else if dialog === 'preferences'}
+  <PreferencesDialog audition={auditionSettings} onClose={() => (dialog = null)} />
 {:else if dialog === 'appearance'}
   <AppearanceDialog theme={appearance.theme} font={appearance.font} onClose={() => (dialog = null)} />
 {:else if dialog === 'about'}

@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
+use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter};
 use p12_core::syx::{self, Entry};
 use p12_core::{Location, Message, Program, parse_selection};
 use p12_midi::{DEFAULT_PORT_PATTERN, Synth};
@@ -181,6 +182,12 @@ fn identify(synth: &mut Synth) -> Result<()> {
         "Prophet 12 found, OS major version {} (see the Global screen for the full version)",
         version & 0x0F
     );
+    let globals = synth.fetch_globals()?;
+    match global_parameter(&globals, GLOBAL_MIDI_CHANNEL) {
+        Some(0) => println!("MIDI channel: All"),
+        Some(channel) => println!("MIDI channel: {channel}"),
+        None => println!("MIDI channel: unknown (short Global parameter dump)"),
+    }
     Ok(())
 }
 

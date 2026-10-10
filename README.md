@@ -53,7 +53,7 @@ cargo build --release
 alias p12=./target/release/p12
 
 p12 ports                                   # list MIDI ports
-p12 identify                                # check the synth answers
+p12 identify                                # check the synth answers, show its MIDI channel
 p12 backup                                  # all 4 User banks -> p12-backup-<time>.syx
 p12 backup -s U1,U2:10-20 -o mine.syx       # a selection
 p12 backup -s user --split -o patches/      # one file per program

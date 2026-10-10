@@ -271,6 +271,31 @@ impl Synth {
         Ok(())
     }
 
+    /// The Global parameters as sent by the synth: one byte per parameter.
+    pub fn fetch_globals(&mut self) -> Result<Vec<u8>> {
+        self.request(&Message::RequestGlobals, "global parameters", |m| match m {
+            Message::GlobalsDump(nibbles) => Some(nibbles),
+            _ => None,
+        })
+    }
+
+    /// Sends a Note On; `channel` is 1-16.
+    pub fn note_on(&mut self, channel: u8, note: u8, velocity: u8) -> Result<()> {
+        self.output.send(&[
+            0x90 | (channel.clamp(1, 16) - 1),
+            note & 0x7F,
+            velocity & 0x7F,
+        ])?;
+        Ok(())
+    }
+
+    /// Sends a Note Off; `channel` is 1-16.
+    pub fn note_off(&mut self, channel: u8, note: u8) -> Result<()> {
+        self.output
+            .send(&[0x80 | (channel.clamp(1, 16) - 1), note & 0x7F, 0])?;
+        Ok(())
+    }
+
     /// Loads a program into the edit buffer for auditioning; nothing is stored.
     pub fn send_edit_buffer(&mut self, program: &Program) -> Result<()> {
         self.send(&Message::EditBufferDump(program.clone()))

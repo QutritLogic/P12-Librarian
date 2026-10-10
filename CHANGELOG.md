@@ -13,6 +13,14 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- Auditioning a patch now also plays a note, middle C (C3) for one second by default, so
+  you hear it without touching the keyboard. Space auditions the selected patch.
+- File → Preferences… (Ctrl+,) sets the audition note, its length and MIDI channel, or
+  turns the note off. The channel is read from the synth automatically.
+- `p12 identify` also shows the synth's MIDI channel.
+
 ## [0.3.0] - 2026-10-09
 
 The first release of P12 Librarian, a patch librarian for the Sequential (Dave Smith

@@ -43,6 +43,7 @@ fn main() {
             settings::zoom,
             settings::appearance_options,
             settings::set_appearance,
+            settings::set_audition,
             settings::disclaimer_accepted,
             settings::accept_disclaimer,
             settings::quit,

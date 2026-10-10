@@ -71,12 +71,49 @@ impl Theme {
     ];
 }
 
+/// What auditioning a patch does besides loading it into the edit buffer.
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Audition {
+    /// Play a note after loading the patch.
+    pub play_note: bool,
+    /// MIDI note number; 60 is C3, the Prophet 12's middle C.
+    pub note: u8,
+    pub length_ms: u16,
+    /// 1-16, or 0 to use the channel set on the synth.
+    pub channel: u8,
+}
+
+impl Default for Audition {
+    fn default() -> Self {
+        Self {
+            play_note: true,
+            note: 60,
+            length_ms: 1000,
+            channel: 0,
+        }
+    }
+}
+
+impl Audition {
+    /// Keeps values in the ranges the app offers.
+    fn clamped(self) -> Self {
+        Self {
+            note: self.note.min(127),
+            length_ms: self.length_ms.clamp(100, 10_000),
+            channel: self.channel.min(16),
+            ..self
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub zoom: f64,
     pub font: Font,
     pub theme: Theme,
+    pub audition: Audition,
     /// The disclaimer version the user accepted; 0 if none.
     pub disclaimer_accepted: u32,
 }
@@ -87,6 +124,7 @@ impl Default for Settings {
             zoom: 1.0,
             font: Font::Fira,
             theme: Theme::System,
+            audition: Audition::default(),
             disclaimer_accepted: 0,
         }
     }
@@ -207,10 +245,21 @@ pub fn set_appearance(app: AppHandle, theme: Option<Theme>, font: Option<Font>) 
     });
 }
 
+/// Changes the audition settings.
+#[tauri::command]
+pub fn set_audition(app: AppHandle, audition: Audition) {
+    update(&app, |s| s.audition = audition.clamped());
+}
+
 /// Whether the user has accepted the current disclaimer.
 #[tauri::command]
 pub fn disclaimer_accepted(state: tauri::State<'_, SettingsState>) -> bool {
-    state.0.lock().unwrap_or_else(|p| p.into_inner()).disclaimer_accepted >= DISCLAIMER_VERSION
+    state
+        .0
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .disclaimer_accepted
+        >= DISCLAIMER_VERSION
 }
 
 /// Records that the user accepted the current disclaimer.

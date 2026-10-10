@@ -320,8 +320,15 @@ until you click #ui[Write].
 
 == Audition <audition>
 
-Double-click a patch, or select one and click #ui[Audition], to load it into the synth's *edit buffer* and play
-it from the keyboard. Nothing is stored: selecting a program on the synth loads its stored version again.
+Double-click a patch, press #key("Space"), or select one and click #ui[Audition], to load it into the synth's
+*edit buffer*. The app then plays middle C (C3) for one second so you hear the patch straight away, and you can
+keep playing it from the keyboard. Nothing is stored: selecting a program on the synth loads its stored version
+again.
+
+#ui[File → Preferences…] (#key("Ctrl", ",")) sets the note, its length (0.25–4 s) and the MIDI channel, or turns
+the note off. The channel is normally *automatic*: the app asks the synth which channel it receives on, and uses
+channel 1 when it is set to All. The note stops early when you audition another patch, or when the app reads
+from or writes to the synth.
 
 #warning[
   Auditioning replaces the sound currently being edited on the synth. Save any unsaved edits on the synth
@@ -492,6 +499,8 @@ Zoom (80–250%), font and theme are remembered.
   [#key("Ctrl", "B")], [Back up all User banks],
   [#key("Ctrl", "F")], [Search in the pane used last],
   [#key("F2")], [Rename the selected patches],
+  [#key("Space")], [Audition the selected patch],
+  [#key("Ctrl", ",")], [Preferences (audition note)],
   [#key("F1")], [Open this guide],
   [#key("Ctrl", "+") #key("Ctrl", "−") #key("Ctrl", "0")], [Zoom in, out, actual size],
   [#key("Esc")], [Close a dialog or menu; clear a search],
@@ -548,6 +557,8 @@ For the curious, and for anyone building on this work.
   *not* the NRPN parameter numbers.
 - *Copy A -> B* on the synth copies all 512 bytes of the layer. Bytes 23 and 293 of each layer hold the same value
   in both layers of every program examined, so they are kept when a layer is copied from another program.
+- *Global Parameters dump*: the manual describes 50 nibbles, but the synth (OS 1.4.2.3) sends one byte per
+  parameter, 26 bytes in all. The MIDI channel is the third byte (0 = All, 1–16).
 - The *Device Inquiry* reply only reports the main OS version (1 for OS 1.4.2.3); the Global screen shows the
   full version.
 
