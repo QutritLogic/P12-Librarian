@@ -101,6 +101,10 @@ The Prophet 12 was designed by Dave Smith Instruments (DSI), now Sequential:
 <https://sequential.com/product/prophet-12-keyboard/>. This project is not affiliated
 with Sequential or Dave Smith Instruments.
 
+## Changes
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
+
 ## Disclaimer
 
 **Use at your own risk.** Writing to the synth replaces the programs stored there, and data
