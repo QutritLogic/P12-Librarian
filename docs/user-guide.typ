@@ -2,7 +2,7 @@
 // Build: docs/build.sh (needs the `typst` CLI). Output goes to
 // app/src-tauri/resources/user-guide.pdf, which the app opens on F1.
 
-#let version = "0.6.0"
+#let version = "0.7.0"
 #let accent = rgb("#2f6fd6")
 #let muted = rgb("#6b7380")
 #let soft = rgb("#eef2f8")
@@ -123,12 +123,12 @@ own backups. The app asks you to accept the disclaimer the first time it starts 
   [*Synthesizer*], [Prophet 12 Keyboard],
   [*Synth OS*], [1.4.2.3, the final release from DSI],
   [*Connection*], [USB, directly to the computer],
-  [*Computer*], [Linux Mint 22.3 (Cinnamon, X11)],
+  [*Computers*], [Linux Mint 22.3 (Cinnamon, X11) and Windows 11, both 64-bit],
 )
 
 #note[
-  The *Prophet 12 Module* is expected to work the same way, but has not been tested. Windows and macOS builds are possible with the same code but have not been tested
-  either.
+  The *Prophet 12 Module* is expected to work the same way, but has not been tested. There is no macOS
+  version.
 ]
 
 What was verified on the hardware above, beyond what the manual documents:
@@ -139,6 +139,24 @@ What was verified on the hardware above, beyond what the manual documents:
 - that the synth's own *Copy A -> B* copies a whole layer, which is what Layer B copying is based on.
 
 = Getting started
+
+== Installing
+
+Download P12 Librarian from #link("https://qutrit.se/p12-librarian/")[qutrit.se/p12-librarian]. Installing a
+newer version over an older one keeps your settings and backups.
+
+/ Linux: Debian 12, Ubuntu 22.04, Linux Mint 21 or newer, 64-bit. Install the `.deb` package from a terminal in
+  the folder you downloaded it to, then start P12 Librarian from the applications menu:
+  ```sh
+  sudo apt install ./p12-librarian_<version>_amd64.deb
+  ```
+
+/ Windows: Windows 11, 64-bit. Run the downloaded `setup.exe`. Windows shows #emph[“Windows protected your
+  PC”] because the installer isn't signed: click #ui[More info], then #ui[Run anyway]. Accept the licence, and
+  start P12 Librarian from the Start menu. It installs for your user account only and needs no administrator
+  rights; uninstall it in #ui[Settings → Apps].
+
+The command-line tool `p12` (@cli) is only included in the Linux version for now.
 
 == Settings on the synth <settings-on-the-synth>
 
@@ -161,6 +179,11 @@ connects automatically. The header then shows #text(fill: rgb("#2e9e5b"))[● Co
 If it doesn't connect, choose the ports in the #ui[In] and #ui[Out] lists, click #ui[Connect], and use
 #ui[↻] to rescan after plugging the synth in. Connecting checks that a Prophet 12 really answers; if it
 doesn't, see @troubleshooting.
+
+#note[
+  On *Windows*, only one program at a time can use a MIDI port. Close any DAW, editor or other MIDI software
+  that uses the Prophet 12 before connecting.
+]
 
 == The window
 
@@ -455,7 +478,7 @@ Every operation that changes the synth (writing, renaming, initializing and Laye
 + The new programs are written, one at a time, with a short pause after each so the synth can store it.
 + Every slot is *read back* and compared with what was sent. A mismatch is reported, with the backup's location.
 
-Backups go to `~/Documents/Prophet 12 Backups/` and are named after what was done and when, e.g.
+Backups go to `~/Documents/Prophet 12 Backups/` (on Windows: `Documents\Prophet 12 Backups`) and are named after what was done and when, e.g.
 `before-rename-20261008-210232.syx`. The app never deletes them unless you ask it to.
 
 The Factory banks are never written: the app refuses before anything is sent.
@@ -510,12 +533,13 @@ Zoom (80–250%), font and theme are remembered.
 == Where the app keeps things
 
 #table(
-  columns: (auto, 1fr),
+  columns: (auto, 1fr, 1fr),
   inset: 6pt,
   stroke: 0.5pt + muted.lighten(50%),
-  [Backups], [`~/Documents/Prophet 12 Backups/`],
-  [Settings], [`~/.config/app.p12librarian/settings.json`],
-  [Init template], [`~/.local/share/app.p12librarian/init-template.syx`],
+  table.header([], [*Linux*], [*Windows*]),
+  [Backups], [`~/Documents/Prophet 12 Backups/`], [`Documents\Prophet 12 Backups\`],
+  [Settings], [`~/.config/app.p12librarian/settings.json`], [`%APPDATA%\app.p12librarian\settings.json`],
+  [Init template], [`~/.local/share/app.p12librarian/init-template.syx`], [`%APPDATA%\app.p12librarian\init-template.syx`],
 )
 
 = Keyboard shortcuts
@@ -558,16 +582,19 @@ Zoom (80–250%), font and theme are remembered.
 
 / The app doesn't find the synth after plugging it in: Click #ui[↻] next to the port lists.
 
+/ Connecting fails on Windows although the synth is listed: Another program is using the Prophet 12's MIDI
+  port; Windows allows only one at a time. Close DAWs, editors and other MIDI software, then click #ui[Connect].
+
 / A patch sounds different after auditioning: Auditioning replaced the edit buffer. Select the program on the
   synth again to reload it.
 
 / Layer B can't be heard: Turn on #ui[Split A | B] or #ui[Stack A + B] on the synth, or press #ui[Edit Layer B]
   to play Layer B alone.
 
-= Command-line tool
+= Command-line tool <cli>
 
-The project also includes `p12`, a command-line version of the main functions, which is useful for scripts
-and scheduled backups. Run `p12 --help` for every option.
+The Linux version also includes `p12`, a command-line version of the main functions, which is useful for
+scripts and scheduled backups. Run `p12 --help` for every option. It isn't part of the Windows version yet.
 
 ```sh
 p12 ports                                    # list MIDI ports

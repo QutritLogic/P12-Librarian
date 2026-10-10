@@ -13,9 +13,14 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-10
+
 ### Added
 
-- A Windows 11 installer (in testing).
+- A Windows 11 version (64-bit), installed with a setup program. The `p12`
+  command-line tool is only included in the Linux version for now.
+- The user guide covers installing on Linux and Windows, where the app keeps its files
+  on each, and Windows' rule that only one program at a time can use a MIDI port.
 
 ## [0.6.0] - 2026-10-10
 
@@ -92,7 +97,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.3.0...v0.4.0
