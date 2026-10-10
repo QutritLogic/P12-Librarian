@@ -13,6 +13,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-10
+
 ### Added
 
 - An Undo button (Ctrl+Z) in the status bar after every write, rename, initialize or
@@ -20,7 +22,6 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 - File → Restore points… lists every automatic backup with the slots it holds, the
   names they had and what is on the synth now, and restores it, opens it in the File
   pane, shows it in its folder or deletes it.
-
 - Rearranging: drag a patch onto another slot in the Prophet 12 pane to swap the two
   (several selected patches swap pair by pair). Ctrl+drag copies instead.
 
@@ -72,6 +73,7 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/QutritLogic/P12-Librarian/releases/tag/v0.3.0
