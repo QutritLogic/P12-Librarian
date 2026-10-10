@@ -13,6 +13,10 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- A Windows 11 installer (in testing).
+
 ## [0.6.0] - 2026-10-10
 
 ### Added

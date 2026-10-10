@@ -32,6 +32,27 @@ npm run tauri build    # release .deb and AppImage in target/release/bundle/
 npm run check          # type-check the frontend
 ```
 
+### Windows installer, built on Linux
+
+One-time setup:
+
+```bash
+sudo apt install nsis lld llvm clang
+rustup target add x86_64-pc-windows-msvc
+cargo install --locked cargo-xwin
+```
+
+Build (`XWIN_ACCEPT_LICENSE=1` accepts the licence of the Microsoft libraries that
+cargo-xwin downloads):
+
+```bash
+cd app
+XWIN_ACCEPT_LICENSE=1 npm run tauri build -- --runner cargo-xwin --target x86_64-pc-windows-msvc --bundles nsis
+# -> target/x86_64-pc-windows-msvc/release/bundle/nsis/P12 Librarian_<version>_x64-setup.exe
+```
+
+The installer is unsigned, so Windows SmartScreen warns before running it.
+
 `cargo build` / `cargo test` at the workspace root build only the libraries and the
 CLI, so they work without the webkit packages.
 

@@ -17,7 +17,8 @@ accepted = [
     "0BSD",
     "Unlicense",
 ]
-targets = ["x86_64-unknown-linux-gnu"]
+# Every platform P12 Librarian is built for, so the list covers each build.
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 ignore-build-dependencies = true
 ignore-dev-dependencies = true
 # P12 Librarian's own packages are not third-party code.

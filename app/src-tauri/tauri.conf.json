@@ -47,6 +47,17 @@
     "homepage": "https://qutrit.se/p12-librarian/",
     "shortDescription": "Patch librarian for the Sequential Prophet 12",
     "longDescription": "Back up, browse, search, rename and restore the programs of a Dave Smith Instruments Prophet 12 over MIDI SysEx, with automatic backups and verification of every write. Includes the p12 command-line tool.",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    },
     "linux": {
       "deb": {
         "depends": [
