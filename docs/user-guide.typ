@@ -313,9 +313,22 @@ until you click #ui[Write].
   + Click #ui[Write]. The status bar confirms that the patch was written and verified.
 ]
 
-#example[copying a patch to another slot on the synth][
-  Patches in the Prophet 12 pane can be dragged too. Drag #raw("U1:04") onto the row of #raw("U4:50") to put a
-  copy there, after the usual confirmation.
+== Rearranging patches on the synth <rearrange>
+
+Drag a patch in the Prophet 12 pane onto another slot to *swap* them: #raw("U1:04") goes to #raw("U4:50") and
+#raw("U4:50") goes to #raw("U1:04"). The app asks first, then reads both slots, keeps them as a restore point,
+writes each patch to the other's slot and checks the result. #ui[Undo] (#key("Ctrl", "Z")) swaps them back.
+
+Several selected patches swap with the same number of consecutive slots from where you drop them, pair by pair.
+The two groups must not overlap.
+
+To *copy* instead, hold #key("Ctrl") while dropping: the patch is written to the new slot and stays where it was.
+Patches from the Factory banks are always copied, since those banks can't be changed.
+
+#example[moving a pad to the top of a bank][
+  + Read bank U1.
+  + Drag #raw("U1:37") onto #raw("U1:01") and click #ui[Swap].
+  + The pad is now at #raw("U1:01"), and the patch that was there is at #raw("U1:37").
 ]
 
 == Audition <audition>
@@ -443,15 +456,29 @@ Every operation that changes the synth (writing, renaming, initializing and Laye
 + Every slot is *read back* and compared with what was sent. A mismatch is reported, with the backup's location.
 
 Backups go to `~/Documents/Prophet 12 Backups/` and are named after what was done and when, e.g.
-`before-rename-20261008-210232.syx`. They are never deleted by the app.
-
-#example[undoing a change][
-  + #ui[Open .syx…] and choose the backup from `~/Documents/Prophet 12 Backups/`.
-  + Select the patches, click #ui[Write to synth…] and keep #ui[Original locations].
-  + Click #ui[Write].
-]
+`before-rename-20261008-210232.syx`. The app never deletes them unless you ask it to.
 
 The Factory banks are never written: the app refuses before anything is sent.
+
+== Undo and restore points <restore>
+
+Right after a write, rename, initialize or Layer B copy, the status bar shows an #ui[Undo] button
+(#key("Ctrl", "Z")). It writes the previous contents back from the backup just made, with the same backup and
+verification, so the undo can itself be undone.
+
+#ui[File → Restore points…] lists every backup, newest first, e.g. #emph[“10 Oct 2026, 20:32 — Before rename ·
+U1:03–U1:07”]. Selecting one shows the slots it holds, the names they had then, and what is in those slots on
+the synth now. From there you can:
+
+- #ui[Restore] all its slots to the synth;
+- #ui[Open in File pane], to restore only some of the patches by writing them as usual;
+- #ui[Show in folder] or #ui[Delete] it (click #ui[Delete] twice).
+
+#example[undoing a rename from yesterday][
+  + #ui[File → Restore points…] and select the one marked #emph[Before rename] at the right time.
+  + Check the #ui[Saved] and #ui[On the synth now] columns.
+  + Click #ui[Restore].
+]
 
 = Settings
 
@@ -512,6 +539,7 @@ Zoom (80–250%), font and theme are remembered.
   [#key("Enter")], [File pane: write the selected patches to the synth (asks first)],
   [#key("Delete")], [Prophet 12 pane: initialize the selected slots (asks first)],
   [#key("↓") in a search box], [Jump to the first result],
+  [#key("Ctrl", "Z")], [Undo the last change on the synth],
   [#key("Ctrl", ",")], [Preferences (audition note)],
   [#key("F1")], [Open this guide],
   [#key("Ctrl", "+") #key("Ctrl", "−") #key("Ctrl", "0")], [Zoom in, out, actual size],

@@ -2,6 +2,9 @@
   // Ids being dragged. Shared between tables: dataTransfer contents can't be
   // read during dragover, and the drop target needs the count to preview.
   let draggingIds: number[] = [];
+  // The table the drag started in, so a drop can tell a rearrange within one
+  // table from a copy between tables.
+  let dragSource: object | null = null;
 </script>
 
 <script lang="ts">
@@ -9,6 +12,14 @@
 
   /** Where on a row something is dropped: the whole slot, or just its Layer B. */
   export type DropZone = 'row' | 'layerB';
+
+  /** How a drop was made. */
+  export interface DropInfo {
+    /** The patches came from this same table. */
+    sameTable: boolean;
+    /** Ctrl was held: copy rather than rearrange. */
+    copy: boolean;
+  }
 
   export interface Row {
     key: string;
@@ -24,8 +35,10 @@
     selected?: string[];
     /** Rows can be dragged out of this table. */
     draggable?: boolean;
-    /** Rows accept drops; called with the target row, the dragged ids and the zone. */
-    onDrop?: (row: Row, ids: number[], zone: DropZone) => void;
+    /** Rows accept drops; called with the target row, the dragged ids, the zone and how. */
+    onDrop?: (row: Row, ids: number[], zone: DropZone, info: DropInfo) => void;
+    /** Whether dropping here without Ctrl rearranges rather than copies (shows a move cursor). */
+    rearranges?: (sameTable: boolean) => boolean;
     /** Whether a row (or its Layer B cell) may receive a drop. */
     canDropOn?: (row: Row, zone: DropZone) => boolean;
     onActivate?: (row: Row) => void;
@@ -49,6 +62,7 @@
     draggable = false,
     onDrop,
     canDropOn = () => true,
+    rearranges = () => false,
     onActivate,
     onContextMenu,
     onFocus,
@@ -62,6 +76,8 @@
   /** The keyboard cursor: the key of the row last clicked or moved to. */
   let cursorKey = $state<string | null>(null);
   let wrap = $state<HTMLDivElement>();
+  /** Identifies this table as a drag source. */
+  const self = {};
   let dropIndex = $state<number | null>(null);
   let dropZone = $state<DropZone>('row');
   let selectedSet = $derived(new Set(selected));
@@ -168,8 +184,9 @@
     if (row.id === null) return event.preventDefault();
     if (!selectedSet.has(row.key)) selected = [row.key];
     draggingIds = rows.filter((r) => selected.includes(r.key) && r.id !== null).map((r) => r.id!);
+    dragSource = self;
     event.dataTransfer?.setData('text/plain', `p12-ids:${draggingIds.join(',')}`);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copy';
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = 'copyMove';
   }
 
   function zoneOf(event: DragEvent): DropZone {
@@ -183,7 +200,8 @@
       return;
     }
     event.preventDefault();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    const move = zone === 'row' && !event.ctrlKey && rearranges(dragSource === self);
+    if (event.dataTransfer) event.dataTransfer.dropEffect = move ? 'move' : 'copy';
     dropIndex = index;
     dropZone = zone;
   }
@@ -192,9 +210,11 @@
     event.preventDefault();
     const ids = draggingIds;
     const zone = dropZone;
+    const info = { sameTable: dragSource === self, copy: event.ctrlKey };
     draggingIds = [];
+    dragSource = null;
     dropIndex = null;
-    if (onDrop && ids.length > 0) onDrop(row, ids, zone);
+    if (onDrop && ids.length > 0) onDrop(row, ids, zone, info);
   }
 
   function inDropRange(index: number): boolean {
@@ -224,7 +244,7 @@
             ondblclick={() => row.id !== null && onActivate?.(row)}
             oncontextmenu={(e) => contextMenu(e, index)}
             ondragstart={(e) => dragStart(e, row)}
-            ondragend={() => ((draggingIds = []), (dropIndex = null))}
+            ondragend={() => ((draggingIds = []), (dragSource = null), (dropIndex = null))}
             ondragover={(e) => dragOver(e, index)}
             ondrop={(e) => drop(e, row)}
           >

@@ -6,11 +6,13 @@
   import AboutDialog from './lib/AboutDialog.svelte';
   import AppearanceDialog from './lib/AppearanceDialog.svelte';
   import PreferencesDialog from './lib/PreferencesDialog.svelte';
+  import RestoreDialog from './lib/RestoreDialog.svelte';
+  import SwapDialog from './lib/SwapDialog.svelte';
   import DisclaimerDialog from './lib/DisclaimerDialog.svelte';
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
   import InitDialog from './lib/InitDialog.svelte';
   import LayerBDialog from './lib/LayerBDialog.svelte';
-  import PatchTable, { type DropZone, type Move, type Row } from './lib/PatchTable.svelte';
+  import PatchTable, { type DropInfo, type DropZone, type Move, type Row } from './lib/PatchTable.svelte';
   import RenameDialog from './lib/RenameDialog.svelte';
   import SearchBox from './lib/SearchBox.svelte';
   import WriteDialog from './lib/WriteDialog.svelte';
@@ -29,6 +31,7 @@
     type Ports,
     type Progress,
     type RenameRequest,
+    type RestorePoint,
     type AuditionSettings,
     type Settings,
     type WriteRequest,
@@ -54,15 +57,17 @@
   let progress = $state<Progress | null>(null);
   let busy = $state<string | null>(null);
   let cancellable = $state(false);
-  let message = $state<{ text: string; error: boolean } | null>(null);
+  /** The status bar message. `undo` is the backup that undoes the change just made. */
+  let message = $state<{ text: string; error: boolean; undo?: string } | null>(null);
   let backupDir = $state('');
   let writing = $state<{ patches: Patch[]; start: string | null } | null>(null);
-  let dialog = $state<'about' | 'disclaimer' | 'appearance' | 'preferences' | null>(null);
+  let dialog = $state<'about' | 'disclaimer' | 'appearance' | 'preferences' | 'restore' | null>(null);
   /** True until the user accepts the disclaimer; nothing touches the synth before that. */
   let mustAccept = $state(false);
   let renaming = $state<{ pane: Pane; title: string; patches: Patch[]; proposed: string[] } | null>(null);
   let initializing = $state<string[] | null>(null);
   let layerCopy = $state<{ source: Patch; target: string } | null>(null);
+  let swapping = $state<[string, string][] | null>(null);
   let contextMenu = $state<{ x: number; y: number; items: (MenuItem | null)[] } | null>(null);
 
   type Pane = 'synth' | 'file';
@@ -154,6 +159,26 @@
 
   function info(text: string) {
     message = { text, error: false };
+  }
+
+  /** Reports a change on the synth, offering to undo it from its backup. */
+  function changed(text: string, backupPath: string) {
+    message = { text: `${text} The previous contents are kept as a restore point.`, error: false, undo: backupPath };
+  }
+
+  /** Writes a restore point back to the synth: Undo, or Restore in the Restore points dialog. */
+  function restoreFrom(path: string, what: string) {
+    dialog = null;
+    return run('Restoring', async () => {
+      const report = await api.restore(path);
+      for (const p of report.written) synthPatches.set(p.location!, p);
+      const count = `${report.written.length} ${report.written.length === 1 ? 'slot' : 'slots'}`;
+      changed(`${what}: restored and verified ${count}.`, report.backupPath);
+    });
+  }
+
+  function undo() {
+    if (message?.undo && connected && !busy) restoreFrom(message.undo, 'Undone');
   }
 
   /** Runs one operation at a time and turns errors into the status message. */
@@ -257,7 +282,10 @@
 
   async function openFile() {
     const path = await open({ filters: syxFilter, multiple: false });
-    if (!path) return;
+    if (path) await openPath(path);
+  }
+
+  async function openPath(path: string) {
     await run('Opening', async () => {
       const result = await api.openSyx(path);
       filePath = path;
@@ -286,7 +314,7 @@
     return run('Writing', async () => {
       const report = await api.writePrograms(writes);
       for (const p of report.written) synthPatches.set(p.location!, p);
-      info(`Wrote and verified ${report.written.length} patches. Previous contents saved to ${report.backupPath}`);
+      changed(`Wrote and verified ${report.written.length} patches.`, report.backupPath);
     });
   }
 
@@ -295,15 +323,51 @@
     return filePatches.find((p) => p.id === id) ?? [...synthPatches.values()].find((p) => p.id === id);
   }
 
-  function dropOnSynth(row: Row, ids: number[], zone: DropZone) {
+  function dropOnSynth(row: Row, ids: number[], zone: DropZone, info: DropInfo) {
     const patches = ids.map(patchById).filter((p) => p !== undefined);
-    if (zone === 'row') {
+    // Within the Prophet 12 pane a drop rearranges; Ctrl, or a Factory patch, copies.
+    if (zone === 'row' && info.sameTable && !info.copy && patches.every((p) => isUserSlot(p.location!))) {
+      startSwap(patches, row.location);
+    } else if (zone === 'row') {
       startWrite(patches, row.location);
     } else if (patches.length !== 1) {
       message = { text: 'Drop a single patch onto a Layer B.', error: true };
     } else {
       layerCopy = { source: patches[0], target: row.location };
     }
+  }
+
+  /**
+   * Pairs the dragged slots with consecutive slots from the drop target, and
+   * asks to swap them. The two groups must not overlap.
+   */
+  function startSwap(patches: Patch[], target: string) {
+    const sources = patches.map((p) => p.location!);
+    const bankOfTarget = target.slice(0, 2);
+    const slots = bankSlots(bankOfTarget);
+    const start = slots.indexOf(target);
+    const targets = slots.slice(start, start + sources.length);
+    if (sources.length === 1 && sources[0] === target) return; // dropped back where it was
+    if (targets.length < sources.length) {
+      message = { text: `There aren't ${sources.length} slots from ${target} to the end of ${bankOfTarget}.`, error: true };
+    } else if (targets.some((t) => sources.includes(t))) {
+      message = {
+        text: 'Those slots overlap the ones being dragged. Drop them on slots outside the selection to swap.',
+        error: true,
+      };
+    } else {
+      swapping = sources.map((s, i) => [s, targets[i]]);
+    }
+  }
+
+  function confirmSwap(pairs: [string, string][]) {
+    swapping = null;
+    return run('Swapping', async () => {
+      const report = await api.swapPrograms(pairs);
+      for (const p of report.written) synthPatches.set(p.location!, p);
+      const what = pairs.length === 1 ? `${pairs[0][0]} and ${pairs[0][1]}` : `${pairs.length} pairs of slots`;
+      changed(`Swapped and verified ${what}.`, report.backupPath);
+    });
   }
 
   function canDropOnSynth(row: Row, zone: DropZone): boolean {
@@ -317,7 +381,7 @@
     return run('Copying into Layer B', async () => {
       const report = await api.copyToLayerB(source.id, target);
       for (const p of report.written) synthPatches.set(p.location!, p);
-      info(`Copied "${source.name}" into Layer B of ${target} and verified it. Previous contents saved to ${report.backupPath}`);
+      changed(`Copied "${source.name}" into Layer B of ${target} and verified it.`, report.backupPath);
     });
   }
 
@@ -376,11 +440,8 @@
         filePatches = filePatches.map((p) => renamed.get(p.id) ?? p);
       }
       const count = `${report.patches.length} ${report.patches.length === 1 ? 'patch' : 'patches'}`;
-      info(
-        report.backupPath
-          ? `Renamed and verified ${count} on the synth. Previous contents saved to ${report.backupPath}`
-          : `Renamed ${count} in this list. Use Save selected… to keep the new names.`,
-      );
+      if (report.backupPath) changed(`Renamed and verified ${count} on the synth.`, report.backupPath);
+      else info(`Renamed ${count} in this list. Use Save selected… to keep the new names.`);
     });
   }
 
@@ -398,7 +459,7 @@
       const report = await api.initPrograms(locations);
       for (const p of report.written) synthPatches.set(p.location!, p);
       const count = `${report.written.length} ${report.written.length === 1 ? 'slot' : 'slots'}`;
-      info(`Initialized and verified ${count}. Previous contents saved to ${report.backupPath}`);
+      changed(`Initialized and verified ${count}.`, report.backupPath);
     });
   }
 
@@ -491,7 +552,7 @@
 
   function keydown(event: KeyboardEvent) {
     if (zoomKey(event)) return;
-    if (mustAccept || renaming || writing || initializing || layerCopy || dialog || contextMenu) return;
+    if (mustAccept || renaming || writing || initializing || layerCopy || swapping || dialog || contextMenu) return;
     if (event.ctrlKey && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       const input = activePane === 'synth' ? synthSearchInput : fileSearchInput;
@@ -524,7 +585,9 @@
       PageDown: 'page-down',
     };
     const key = event.key;
-    if (event.ctrlKey && (key === 'PageUp' || key === 'PageDown')) {
+    if (event.ctrlKey && key.toLowerCase() === 'z') {
+      undo();
+    } else if (event.ctrlKey && (key === 'PageUp' || key === 'PageDown')) {
       switchBank(key === 'PageUp' ? -1 : 1);
     } else if (key in moves && !event.ctrlKey && !event.altKey) {
       const moved = table?.move(moves[key], event.shiftKey);
@@ -571,6 +634,7 @@
   function menuAction(id: string) {
     if (mustAccept) return;
     else if (id === 'about' || id === 'disclaimer' || id === 'appearance' || id === 'preferences') dialog = id;
+    else if (id === 'restore_points') dialog = 'restore';
     else if (busy || writing || renaming || initializing || layerCopy) return;
     else if (id === 'open') openFile();
     else if (id === 'backup') {
@@ -703,6 +767,7 @@
       draggable
       onDrop={dropOnSynth}
       canDropOn={canDropOnSynth}
+      rearranges={(sameTable) => sameTable}
       highlight={synthTerms}
       emptyText={synthEmptyText}
       onActivate={(row) => audition(synthPatches.get(row.location))}
@@ -809,11 +874,29 @@
     <span class="label">{progress?.label ?? `${busy}…`}</span>
     {#if cancellable}<button class="cancel" onclick={() => api.cancel()} title="Stop reading. Programs read so far are kept.">Cancel</button>{/if}
   {:else if message}
-    <span class:error={message.error}>{message.text}</span>
+    <span class="label" class:error={message.error} title={message.text}>{message.text}</span>
+    {#if message.undo}
+      <button
+        class="cancel"
+        onclick={undo}
+        disabled={!connected}
+        title={connected ? `Write back the previous contents (Ctrl+Z). Saved in ${message.undo}` : 'Connect to the Prophet 12 first'}
+        >Undo</button
+      >
+    {/if}
   {:else}
     <span class="muted">Double-click a patch, or press Space, to audition it. Right-click for more, e.g. Cleanify names. Press F1 for the user guide.</span>
   {/if}
 </footer>
+
+{#if swapping}
+  <SwapDialog
+    pairs={swapping}
+    currentName={(location) => synthPatches.get(location)?.name}
+    onConfirm={confirmSwap}
+    onCancel={() => (swapping = null)}
+  />
+{/if}
 
 {#if writing}
   <WriteDialog
@@ -867,6 +950,14 @@
   <DisclaimerDialog accept onAccept={acceptDisclaimer} onQuit={() => api.quit()} />
 {:else if dialog === 'disclaimer'}
   <DisclaimerDialog onClose={() => (dialog = null)} />
+{:else if dialog === 'restore'}
+  <RestoreDialog
+    {connected}
+    currentName={(location) => synthPatches.get(location)?.name}
+    onRestore={(point: RestorePoint) => restoreFrom(point.path, `Restore point of ${point.time}`)}
+    onOpen={(point: RestorePoint) => ((dialog = null), openPath(point.path))}
+    onClose={() => (dialog = null)}
+  />
 {:else if dialog === 'preferences'}
   <PreferencesDialog audition={auditionSettings} onClose={() => (dialog = null)} />
 {:else if dialog === 'appearance'}

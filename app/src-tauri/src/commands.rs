@@ -234,6 +234,19 @@ fn write_syx(path: &Path, messages: &[Message]) -> CmdResult<()> {
     fs::write(path, syx::encode(messages)).map_err(|e| format!("Writing {}: {e}", path.display()))
 }
 
+/// A new backup file name, `<prefix>-<YYYYMMDD-HHMMSS>.syx`, with `-2`, `-3`…
+/// added if a backup was already made in the same second.
+fn unique_backup_file(dir: &Path, prefix: &str) -> PathBuf {
+    let stamp = timestamp();
+    let mut path = dir.join(format!("{prefix}-{stamp}.syx"));
+    let mut n = 2;
+    while path.exists() {
+        path = dir.join(format!("{prefix}-{stamp}-{n}.syx"));
+        n += 1;
+    }
+    path
+}
+
 fn backup_path(app: &AppHandle) -> CmdResult<PathBuf> {
     let base = app
         .path()
@@ -453,15 +466,16 @@ pub struct WriteReport {
 }
 
 /// The one way programs get stored on the synth: reads the current contents
-/// of `targets` and saves them as a backup, writes `make(slot, current)` to
-/// each slot, then reads every slot back and checks it matches.
+/// of `targets` and saves them as a backup, writes `make(slot, current,
+/// all_current)` to each slot, then reads every slot back and checks it
+/// matches. `all_current` holds what was just read from every target.
 fn write_and_verify(
     app: &AppHandle,
     state: &AppState,
     synth: &mut Synth,
     targets: &BTreeSet<Location>,
     (verb, backup_prefix): (&str, &str),
-    make: impl Fn(Location, &Program) -> CmdResult<Program>,
+    make: impl Fn(Location, &Program, &BTreeMap<Location, Program>) -> CmdResult<Program>,
 ) -> CmdResult<WriteReport> {
     let mut current = Vec::new();
     let complete = fetch(
@@ -475,7 +489,7 @@ fn write_and_verify(
     if !complete {
         return Err("Cancelled before anything was written".into());
     }
-    let backup = backup_path(app)?.join(format!("{backup_prefix}-{}.syx", timestamp()));
+    let backup = unique_backup_file(&backup_path(app)?, backup_prefix);
     let previous: Vec<_> = current
         .iter()
         .map(|(location, program)| Message::ProgramDump {
@@ -485,9 +499,10 @@ fn write_and_verify(
         .collect();
     write_syx(&backup, &previous)?;
 
+    let all_current: BTreeMap<Location, Program> = current.iter().cloned().collect();
     let plan = current
         .iter()
-        .map(|(location, program)| Ok((*location, make(*location, program)?)))
+        .map(|(location, program)| Ok((*location, make(*location, program, &all_current)?)))
         .collect::<CmdResult<Vec<_>>>()?;
     for (i, (target, program)) in plan.iter().enumerate() {
         synth
@@ -565,7 +580,7 @@ pub async fn write_programs(app: AppHandle, writes: Vec<WriteRequest>) -> CmdRes
                 synth,
                 &targets,
                 ("Writing", "before-write"),
-                |location, _| Ok(plan[&location].clone()),
+                |location, _, _| Ok(plan[&location].clone()),
             )
         })
     })
@@ -644,7 +659,7 @@ pub async fn rename_programs(
                     synth,
                     &targets,
                     ("Renaming", "before-rename"),
-                    |location, current| {
+                    |location, current, _| {
                         let mut program = current.clone();
                         program.set_name(&on_synth[&location]).str_err()?;
                         Ok(program)
@@ -680,7 +695,7 @@ pub async fn copy_to_layer_b(app: AppHandle, id: u32, target: String) -> CmdResu
                 synth,
                 &BTreeSet::from([target]),
                 ("Writing Layer B of", "before-layer-b"),
-                |_, current| Ok(current.with_layer_b_from(&source)),
+                |_, current, _| Ok(current.with_layer_b_from(&source)),
             )
         })
     })
@@ -763,7 +778,7 @@ pub async fn init_programs(app: AppHandle, locations: Vec<String>) -> CmdResult<
                 synth,
                 &targets,
                 ("Initializing", "before-init"),
-                |_, _| Ok(template.clone()),
+                |_, _, _| Ok(template.clone()),
             )
         })
     })
@@ -773,4 +788,252 @@ pub async fn init_programs(app: AppHandle, locations: Vec<String>) -> CmdResult<
 #[tauri::command]
 pub fn backup_dir(app: AppHandle) -> CmdResult<String> {
     Ok(backup_path(&app)?.display().to_string())
+}
+
+// ───────────────────────────── Swapping ─────────────────────────────
+
+/// Pairs each slot with the one it swaps with, in both directions. Every slot
+/// must be a User slot and appear only once.
+fn swap_partners(pairs: &[(String, String)]) -> CmdResult<BTreeMap<Location, Location>> {
+    let mut partners = BTreeMap::new();
+    for (a, b) in pairs {
+        let (a, b): (Location, Location) = (a.parse().str_err()?, b.parse().str_err()?);
+        for slot in [a, b] {
+            if !slot.is_user() {
+                return Err(read_only_error(slot));
+            }
+            if partners.contains_key(&slot) {
+                return Err(format!("{slot} can only take part in one swap at a time"));
+            }
+        }
+        if a == b {
+            return Err(format!("{a} can't be swapped with itself"));
+        }
+        partners.insert(a, b);
+        partners.insert(b, a);
+    }
+    if partners.is_empty() {
+        return Err("Nothing to swap".into());
+    }
+    Ok(partners)
+}
+
+/// Swaps the programs in each pair of slots. The swap uses what is on the
+/// synth when it starts, read during the backup, and is verified like any
+/// other write.
+#[tauri::command]
+pub async fn swap_programs(app: AppHandle, pairs: Vec<(String, String)>) -> CmdResult<WriteReport> {
+    blocking(app, move |app, state| {
+        let partners = swap_partners(&pairs)?;
+        let targets: BTreeSet<Location> = partners.keys().copied().collect();
+        with_synth(state, |synth| {
+            write_and_verify(
+                app,
+                state,
+                synth,
+                &targets,
+                ("Swapping", "before-swap"),
+                |location, _, current| Ok(current[&partners[&location]].clone()),
+            )
+        })
+    })
+    .await
+}
+
+// ───────────────────────────── Restore points ─────────────────────────────
+
+/// The automatic backups made before each kind of change, by file name prefix.
+const BACKUP_KINDS: [(&str, &str); 6] = [
+    ("before-write", "Write"),
+    ("before-swap", "Swap"),
+    ("before-rename", "Rename"),
+    ("before-init", "Initialize"),
+    ("before-layer-b", "Layer B copy"),
+    ("before-restore", "Restore"),
+];
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RestorePoint {
+    path: String,
+    /// What was about to be done, e.g. "Rename".
+    kind: &'static str,
+    /// When, as "2026-10-08 21:18:58" in local time.
+    time: String,
+    /// The slots it holds, with the names they had then.
+    slots: Vec<RestoreSlot>,
+}
+
+#[derive(Serialize)]
+pub struct RestoreSlot {
+    location: String,
+    name: String,
+}
+
+/// The kind and time of a backup from its file name, or None if the file
+/// isn't an automatic backup.
+fn parse_backup_name(file_name: &str) -> Option<(&'static str, String)> {
+    let stem = file_name.strip_suffix(".syx")?;
+    let (kind, rest) = BACKUP_KINDS.iter().find_map(|(prefix, kind)| {
+        let rest = stem.strip_prefix(prefix)?.strip_prefix('-')?;
+        // "before-layer-b-…" must not count as some shorter prefix plus "-b-…".
+        rest.starts_with(|c: char| c.is_ascii_digit())
+            .then_some((*kind, rest))
+    })?;
+    let (date, time) = (rest.get(0..8)?, rest.get(9..15)?);
+    let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
+    if !digits(date) || !digits(time) || rest.as_bytes().get(8) != Some(&b'-') {
+        return None;
+    }
+    Some((
+        kind,
+        format!(
+            "{}-{}-{} {}:{}:{}",
+            &date[0..4],
+            &date[4..6],
+            &date[6..8],
+            &time[0..2],
+            &time[2..4],
+            &time[4..6]
+        ),
+    ))
+}
+
+/// The programs a backup file holds, by slot.
+fn backup_programs(path: &Path) -> CmdResult<BTreeMap<Location, Program>> {
+    let bytes = fs::read(path).map_err(|e| format!("Reading {}: {e}", path.display()))?;
+    Ok(syx::parse(&bytes)
+        .into_iter()
+        .filter_map(|entry| match entry {
+            Entry::Message(Message::ProgramDump { location, program }) => Some((location, program)),
+            _ => None,
+        })
+        .collect())
+}
+
+/// The automatic backups, newest first.
+#[tauri::command]
+pub fn list_restore_points(app: AppHandle) -> CmdResult<Vec<RestorePoint>> {
+    let dir = backup_path(&app)?;
+    let Ok(entries) = fs::read_dir(&dir) else {
+        return Ok(Vec::new()); // no backups made yet
+    };
+    let mut points: Vec<RestorePoint> = entries
+        .filter_map(|entry| {
+            let path = entry.ok()?.path();
+            let (kind, time) = parse_backup_name(path.file_name()?.to_str()?)?;
+            let programs = backup_programs(&path).ok()?;
+            (!programs.is_empty()).then(|| RestorePoint {
+                path: path.display().to_string(),
+                kind,
+                time,
+                slots: programs
+                    .iter()
+                    .map(|(location, program)| RestoreSlot {
+                        location: location.to_string(),
+                        name: program.name(),
+                    })
+                    .collect(),
+            })
+        })
+        .collect();
+    points.sort_by(|a, b| (&b.time, &b.path).cmp(&(&a.time, &a.path)));
+    Ok(points)
+}
+
+/// Checks that `path` is an automatic backup in the backup folder, so the
+/// frontend can't restore from or delete any other file.
+fn restore_point_file(app: &AppHandle, path: &str) -> CmdResult<PathBuf> {
+    let dir = backup_path(app)?.canonicalize().str_err()?;
+    let file = Path::new(path)
+        .canonicalize()
+        .map_err(|e| format!("{path}: {e}"))?;
+    let is_backup = file.parent() == Some(dir.as_path())
+        && file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .and_then(parse_backup_name)
+            .is_some();
+    if is_backup {
+        Ok(file)
+    } else {
+        Err(format!("{path} is not a restore point"))
+    }
+}
+
+/// Writes a restore point's programs back to their slots. Goes through the
+/// usual backup and verification, so a restore can itself be undone.
+#[tauri::command]
+pub async fn restore(app: AppHandle, path: String) -> CmdResult<WriteReport> {
+    blocking(app, move |app, state| {
+        let programs: BTreeMap<_, _> = backup_programs(&restore_point_file(app, &path)?)?
+            .into_iter()
+            .filter(|(location, _)| location.is_user())
+            .collect();
+        if programs.is_empty() {
+            return Err("This restore point holds no User programs".into());
+        }
+        let targets: BTreeSet<Location> = programs.keys().copied().collect();
+        with_synth(state, |synth| {
+            write_and_verify(
+                app,
+                state,
+                synth,
+                &targets,
+                ("Restoring", "before-restore"),
+                |location, _, _| Ok(programs[&location].clone()),
+            )
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn delete_restore_point(app: AppHandle, path: String) -> CmdResult<()> {
+    let file = restore_point_file(&app, &path)?;
+    fs::remove_file(&file).map_err(|e| format!("Deleting {}: {e}", file.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pairs(list: &[(&str, &str)]) -> Vec<(String, String)> {
+        list.iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn pairs_swap_partners() {
+        let partners = swap_partners(&pairs(&[("U1:04", "U4:50"), ("U1:05", "U4:51")])).unwrap();
+        assert_eq!(partners.len(), 4);
+        assert_eq!(
+            partners[&"U4:50".parse().unwrap()],
+            "U1:04".parse().unwrap()
+        );
+        assert!(swap_partners(&pairs(&[("U1:04", "U1:04")])).is_err());
+        assert!(swap_partners(&pairs(&[("U1:04", "U1:05"), ("U1:05", "U1:06")])).is_err());
+        assert!(swap_partners(&pairs(&[("U1:04", "F1:01")])).is_err());
+        assert!(swap_partners(&[]).is_err());
+    }
+
+    #[test]
+    fn parses_backup_names() {
+        assert_eq!(
+            parse_backup_name("before-rename-20261008-210232.syx"),
+            Some(("Rename", "2026-10-08 21:02:32".to_string()))
+        );
+        assert_eq!(
+            parse_backup_name("before-layer-b-20261008-213831-2.syx"),
+            Some(("Layer B copy", "2026-10-08 21:38:31".to_string()))
+        );
+        assert_eq!(
+            parse_backup_name("before-swap-20261010-120000.syx"),
+            Some(("Swap", "2026-10-10 12:00:00".to_string()))
+        );
+        assert_eq!(parse_backup_name("Test.syx"), None);
+        assert_eq!(parse_backup_name("before-write-2026.syx"), None);
+        assert_eq!(parse_backup_name("before-write-20261008-213831.txt"), None);
+    }
 }

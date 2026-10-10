@@ -52,6 +52,17 @@ export interface AppearanceOptions {
   fonts: { id: FontId; name: string }[];
 }
 
+/** An automatic backup made before a change on the synth. */
+export interface RestorePoint {
+  path: string;
+  /** What was about to be done, e.g. "Rename". */
+  kind: string;
+  /** Local time, "2026-10-08 21:18:58". */
+  time: string;
+  /** The slots it holds, with the names they had then. */
+  slots: { location: string; name: string }[];
+}
+
 export interface WriteRequest {
   id: number;
   target: string;
@@ -82,9 +93,14 @@ export const api = {
   captureInitTemplate: () => invoke<string>('capture_init_template'),
   initPrograms: (locations: string[]) =>
     invoke<{ backupPath: string; written: Patch[] }>('init_programs', { locations }),
+  swapPrograms: (pairs: [string, string][]) =>
+    invoke<{ backupPath: string; written: Patch[] }>('swap_programs', { pairs }),
   copyToLayerB: (id: number, target: string) =>
     invoke<{ backupPath: string; written: Patch[] }>('copy_to_layer_b', { id, target }),
   backupDir: () => invoke<string>('backup_dir'),
+  listRestorePoints: () => invoke<RestorePoint[]>('list_restore_points'),
+  restore: (path: string) => invoke<{ backupPath: string; written: Patch[] }>('restore', { path }),
+  deleteRestorePoint: (path: string) => invoke<void>('delete_restore_point', { path }),
   getSettings: () => invoke<Settings>('get_settings'),
   /** +1 zooms in, -1 out, 0 back to actual size. */
   zoom: (direction: number) => invoke<void>('zoom', { direction }),

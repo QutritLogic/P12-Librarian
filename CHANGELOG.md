@@ -13,6 +13,28 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- An Undo button (Ctrl+Z) in the status bar after every write, rename, initialize or
+  Layer B copy. It writes the previous contents back from the automatic backup.
+- File → Restore points… lists every automatic backup with the slots it holds, the
+  names they had and what is on the synth now, and restores it, opens it in the File
+  pane, shows it in its folder or deletes it.
+
+- Rearranging: drag a patch onto another slot in the Prophet 12 pane to swap the two
+  (several selected patches swap pair by pair). Ctrl+drag copies instead.
+
+### Changed
+
+- Dragging within the Prophet 12 pane now swaps patches instead of copying; hold Ctrl
+  to copy as before.
+- Status messages after a change are shorter and no longer show the backup's full path.
+
+### Fixed
+
+- Two changes within the same second no longer share one backup file name, which made
+  the second backup replace the first.
+
 ## [0.4.0] - 2026-10-10
 
 ### Added

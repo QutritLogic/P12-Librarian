@@ -26,6 +26,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             "Back up all User banks…",
             Some("CmdOrCtrl+B"),
         )?)
+        .item(&item("restore_points", "Restore points…", None)?)
         .separator()
         .item(&item(
             "preferences",
