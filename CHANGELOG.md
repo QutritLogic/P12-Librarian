@@ -20,6 +20,15 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 - File → Preferences… (Ctrl+,) sets the audition note, its length and MIDI channel, or
   turns the note off. The channel is read from the synth automatically.
 - `p12 identify` also shows the synth's MIDI channel.
+- Keyboard navigation: arrow keys, Home/End and Page Up/Down move through the list
+  (with Shift to extend the selection), Left/Right switch panes, Ctrl+Page Up/Down
+  switch banks, Ctrl+A selects all, Enter writes the selected file patches and Delete
+  initializes the selected slots (both ask first). The active pane is outlined.
+- An option to audition each patch as you move to it with the arrow keys.
+
+### Changed
+
+- Switching bank or searching starts the list at the top.
 
 ## [0.3.0] - 2026-10-09
 

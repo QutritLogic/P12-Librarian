@@ -36,7 +36,12 @@
     emptyText?: string;
     /** Search terms to highlight in names. */
     highlight?: string[];
+    /** The pane the keyboard acts on: shows the keyboard cursor. */
+    active?: boolean;
   }
+
+  /** Where the keyboard cursor moves: by rows, or to the first or last row. */
+  export type Move = number | 'first' | 'last';
 
   let {
     rows,
@@ -49,9 +54,14 @@
     onFocus,
     emptyText = 'Nothing here yet',
     highlight = [],
+    active = false,
   }: Props = $props();
 
+  /** Where a Shift selection starts. */
   let anchor = $state<number | null>(null);
+  /** The keyboard cursor: the key of the row last clicked or moved to. */
+  let cursorKey = $state<string | null>(null);
+  let wrap = $state<HTMLDivElement>();
   let dropIndex = $state<number | null>(null);
   let dropZone = $state<DropZone>('row');
   let selectedSet = $derived(new Set(selected));
@@ -60,11 +70,7 @@
     const row = rows[index];
     if (row.id === null) return;
     if (event.shiftKey && anchor !== null) {
-      const [from, to] = anchor < index ? [anchor, index] : [index, anchor];
-      selected = rows
-        .slice(from, to + 1)
-        .filter((r) => r.id !== null)
-        .map((r) => r.key);
+      selectRange(anchor, index);
     } else if (event.ctrlKey || event.metaKey) {
       selected = selectedSet.has(row.key)
         ? selected.filter((k) => k !== row.key)
@@ -74,6 +80,75 @@
       selected = [row.key];
       anchor = index;
     }
+    cursorKey = row.key;
+  }
+
+  function selectRange(a: number, b: number) {
+    const [from, to] = a < b ? [a, b] : [b, a];
+    selected = rows
+      .slice(from, to + 1)
+      .filter((r) => r.id !== null)
+      .map((r) => r.key);
+  }
+
+  /** Rows that fit in the visible part of the table, for Page Up/Down. */
+  function pageSize(): number {
+    const row = wrap?.querySelector('tbody tr');
+    if (!wrap || !(row instanceof HTMLElement) || row.offsetHeight === 0) return 10;
+    return Math.max(1, Math.floor(wrap.clientHeight / row.offsetHeight) - 2);
+  }
+
+  /**
+   * Moves the keyboard cursor, skipping slots that haven't been read, and
+   * selects the row it lands on (or the range from the anchor with `extend`).
+   * Returns false if there was nowhere to move.
+   */
+  export function move(by: Move | 'page-up' | 'page-down', extend = false): boolean {
+    const readable = rows.flatMap((r, i) => (r.id === null ? [] : [i]));
+    if (readable.length === 0) return false;
+    const step = by === 'page-up' ? -pageSize() : by === 'page-down' ? pageSize() : by;
+    const last = readable.length - 1;
+    // Position of the cursor among the readable rows, -1 if it isn't on one.
+    const position = readable.indexOf(rows.findIndex((r) => r.key === cursorKey));
+    let next: number;
+    if (step === 'first') next = 0;
+    else if (step === 'last') next = last;
+    else if (position === -1) next = step > 0 ? 0 : last;
+    else next = Math.min(last, Math.max(0, position + step));
+    const target = readable[next];
+    const key = rows[target].key;
+    // Already there (at either end): nothing changes, so nothing to audition.
+    if (!extend && next === position && selected.length === 1 && selected[0] === key) return false;
+    if (extend && anchor !== null) selectRange(anchor, target);
+    else {
+      selected = [key];
+      anchor = target;
+    }
+    cursorKey = key;
+    scrollTo(target);
+    return true;
+  }
+
+  // A different list (another bank, or a new search) starts at the top.
+  let firstKey = $derived(rows[0]?.key);
+  $effect(() => {
+    void firstKey;
+    if (wrap) wrap.scrollTop = 0;
+  });
+
+  export function selectAll() {
+    selected = rows.filter((r) => r.id !== null).map((r) => r.key);
+  }
+
+  export function clearSelection() {
+    selected = [];
+  }
+
+  function scrollTo(index: number) {
+    // After the selection has rendered, so the row is where it will stay.
+    requestAnimationFrame(() => {
+      wrap?.querySelectorAll('tbody tr')[index]?.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   function contextMenu(event: MouseEvent, index: number) {
@@ -85,6 +160,7 @@
       selected = [row.key];
       anchor = index;
     }
+    cursorKey = row.key;
     onContextMenu?.(event, row);
   }
 
@@ -128,7 +204,7 @@
   }
 </script>
 
-<div class="table-wrap" role="presentation" onmousedown={() => onFocus?.()}>
+<div class="table-wrap" class:active bind:this={wrap} role="presentation" onmousedown={() => onFocus?.()}>
   {#if rows.length === 0}
     <p class="empty">{emptyText}</p>
   {:else}
@@ -140,6 +216,7 @@
         {#each rows as row, index (row.key)}
           <tr
             class:selected={selectedSet.has(row.key)}
+            class:cursor={active && cursorKey === row.key}
             class:unread={row.id === null}
             class:drop={inDropRange(index)}
             draggable={draggable && row.id !== null}
@@ -172,6 +249,20 @@
     border: 1px solid var(--border);
     border-radius: 6px;
     background: var(--surface);
+  }
+  /* The pane the keyboard acts on. */
+  .table-wrap.active {
+    border-color: var(--accent);
+  }
+  /* The keyboard cursor: a frame in the text colour, which stands out both on
+     plain rows and on selected (accent-coloured) ones. */
+  tr.cursor {
+    --cursor: var(--text);
+    outline: 2px solid var(--cursor);
+    outline-offset: -2px;
+  }
+  tr.cursor.selected {
+    --cursor: var(--on-accent);
   }
   table {
     width: 100%;

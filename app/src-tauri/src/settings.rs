@@ -82,6 +82,8 @@ pub struct Audition {
     pub length_ms: u16,
     /// 1-16, or 0 to use the channel set on the synth.
     pub channel: u8,
+    /// Audition each patch the arrow keys move to.
+    pub on_move: bool,
 }
 
 impl Default for Audition {
@@ -91,6 +93,7 @@ impl Default for Audition {
             note: 60,
             length_ms: 1000,
             channel: 0,
+            on_move: false,
         }
     }
 }

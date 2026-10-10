@@ -10,7 +10,7 @@
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
   import InitDialog from './lib/InitDialog.svelte';
   import LayerBDialog from './lib/LayerBDialog.svelte';
-  import PatchTable, { type DropZone, type Row } from './lib/PatchTable.svelte';
+  import PatchTable, { type DropZone, type Move, type Row } from './lib/PatchTable.svelte';
   import RenameDialog from './lib/RenameDialog.svelte';
   import SearchBox from './lib/SearchBox.svelte';
   import WriteDialog from './lib/WriteDialog.svelte';
@@ -68,6 +68,8 @@
   type Pane = 'synth' | 'file';
   /** The pane last clicked, for keyboard shortcuts such as F2. */
   let activePane = $state<Pane>('synth');
+  let synthTable = $state<PatchTable>();
+  let fileTable = $state<PatchTable>();
 
   // Tooltip suffixes explaining why a button is disabled.
   const OFFLINE = '\n\nConnect to the Prophet 12 first.';
@@ -454,7 +456,13 @@
 
   let zoomLevel = 1;
   let appearance = $state({ theme: 'system', font: 'fira' });
-  let auditionSettings = $state<AuditionSettings>({ play_note: true, note: 60, length_ms: 1000, channel: 0 });
+  let auditionSettings = $state<AuditionSettings>({
+    play_note: true,
+    note: 60,
+    length_ms: 1000,
+    channel: 0,
+    on_move: false,
+  });
 
   function applySettings(settings: Settings) {
     appearance = { theme: settings.theme, font: settings.font };
@@ -483,7 +491,7 @@
 
   function keydown(event: KeyboardEvent) {
     if (zoomKey(event)) return;
-    if (mustAccept || renaming || writing || initializing || layerCopy || dialog) return;
+    if (mustAccept || renaming || writing || initializing || layerCopy || dialog || contextMenu) return;
     if (event.ctrlKey && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       const input = activePane === 'synth' ? synthSearchInput : fileSearchInput;
@@ -492,11 +500,63 @@
     } else if (event.key === 'F2') {
       event.preventDefault();
       startRename(activePane);
-    } else if (event.key === ' ' && !event.ctrlKey && !isTextField(event.target)) {
-      // Space auditions the first selected patch in the active pane.
+    } else if (event.key === 'ArrowDown' && (event.target === synthSearchInput || event.target === fileSearchInput)) {
+      // From a search box straight into its results.
       event.preventDefault();
-      if (connected && !busy) audition(activePane === 'synth' ? selectedSynth[0] : selectedFile[0]);
+      activePane = event.target === synthSearchInput ? 'synth' : 'file';
+      (event.target as HTMLInputElement).blur();
+      (activePane === 'synth' ? synthTable : fileTable)?.move('first');
+    } else if (!isTextField(event.target)) {
+      if (navigationKey(event)) event.preventDefault();
     }
+  }
+
+  /** Keys that work on the active pane's list. Returns true if the key was used. */
+  function navigationKey(event: KeyboardEvent): boolean {
+    const table = activePane === 'synth' ? synthTable : fileTable;
+    const selected = activePane === 'synth' ? selectedSynth : selectedFile;
+    const moves: Record<string, Move | 'page-up' | 'page-down'> = {
+      ArrowUp: -1,
+      ArrowDown: 1,
+      Home: 'first',
+      End: 'last',
+      PageUp: 'page-up',
+      PageDown: 'page-down',
+    };
+    const key = event.key;
+    if (event.ctrlKey && (key === 'PageUp' || key === 'PageDown')) {
+      switchBank(key === 'PageUp' ? -1 : 1);
+    } else if (key in moves && !event.ctrlKey && !event.altKey) {
+      const moved = table?.move(moves[key], event.shiftKey);
+      // After the selection updates, audition the patch the cursor landed on.
+      if (moved && !event.shiftKey && auditionSettings.on_move && connected && !busy) {
+        queueMicrotask(() => audition((activePane === 'synth' ? selectedSynth : selectedFile)[0]));
+      }
+    } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      activePane = key === 'ArrowLeft' ? 'synth' : 'file';
+    } else if (event.ctrlKey && key.toLowerCase() === 'a') {
+      table?.selectAll();
+    } else if (key === 'Escape') {
+      table?.clearSelection();
+    } else if (key === ' ' && !event.ctrlKey) {
+      if (connected && !busy) audition(selected[0]);
+    } else if (key === 'Enter' && activePane === 'file' && !(event.target instanceof HTMLButtonElement)) {
+      if (connected && !busy) startWrite(selectedFile);
+    } else if (key === 'Delete' && activePane === 'synth') {
+      if (selectedSynth.length > 0 && initBlocked() === null) initializing = selectedSynth.map((p) => p.location!);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  /** Opens the previous (-1) or next (+1) bank tab. */
+  function switchBank(direction: number) {
+    const index = ALL_BANKS.indexOf(bank as (typeof ALL_BANKS)[number]);
+    bank = ALL_BANKS[(index + direction + ALL_BANKS.length) % ALL_BANKS.length];
+    synthSearch = '';
+    synthSelected = [];
+    activePane = 'synth';
   }
 
   function isTextField(target: EventTarget | null): boolean {
@@ -636,6 +696,8 @@
       />
     </div>
     <PatchTable
+      bind:this={synthTable}
+      active={activePane === 'synth'}
       rows={synthRows}
       bind:selected={synthSelected}
       draggable
@@ -693,6 +755,8 @@
       />
     </div>
     <PatchTable
+      bind:this={fileTable}
+      active={activePane === 'file'}
       rows={fileRows}
       bind:selected={fileSelected}
       draggable

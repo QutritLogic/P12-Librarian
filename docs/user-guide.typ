@@ -325,7 +325,10 @@ Double-click a patch, press #key("Space"), or select one and click #ui[Audition]
 keep playing it from the keyboard. Nothing is stored: selecting a program on the synth loads its stored version
 again.
 
-#ui[File → Preferences…] (#key("Ctrl", ",")) sets the note, its length (0.25–4 s) and the MIDI channel, or turns
+To step through a bank by ear, turn on #ui[Audition each patch as you move with the arrow keys] in
+#ui[File → Preferences…]: every #key("↑") or #key("↓") then loads and plays the next patch.
+
+#ui[File → Preferences…] (#key("Ctrl", ",")) also sets the note, its length (0.25–4 s) and the MIDI channel, or turns
 the note off. The channel is normally *automatic*: the app asks the synth which channel it receives on, and uses
 channel 1 when it is set to All. The note stops early when you audition another patch, or when the app reads
 from or writes to the synth.
@@ -500,10 +503,19 @@ Zoom (80–250%), font and theme are remembered.
   [#key("Ctrl", "F")], [Search in the pane used last],
   [#key("F2")], [Rename the selected patches],
   [#key("Space")], [Audition the selected patch],
+  [#key("↑") #key("↓")], [Move through the list; with #key("Shift"), extend the selection],
+  [#key("Home") #key("End")], [First or last patch],
+  [#key("Page Up") #key("Page Down")], [Move a screenful],
+  [#key("←") #key("→")], [Switch between the Prophet 12 pane and the File pane],
+  [#key("Ctrl", "Page Up") #key("Ctrl", "Page Down")], [Previous or next bank],
+  [#key("Ctrl", "A")], [Select all patches in the pane],
+  [#key("Enter")], [File pane: write the selected patches to the synth (asks first)],
+  [#key("Delete")], [Prophet 12 pane: initialize the selected slots (asks first)],
+  [#key("↓") in a search box], [Jump to the first result],
   [#key("Ctrl", ",")], [Preferences (audition note)],
   [#key("F1")], [Open this guide],
   [#key("Ctrl", "+") #key("Ctrl", "−") #key("Ctrl", "0")], [Zoom in, out, actual size],
-  [#key("Esc")], [Close a dialog or menu; clear a search],
+  [#key("Esc")], [Close a dialog or menu; clear a search; clear the selection],
   [#key("Ctrl", "Q")], [Quit],
 )
 

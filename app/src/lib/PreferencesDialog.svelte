@@ -27,6 +27,11 @@
   </p>
 
   <label class="check">
+    <input type="checkbox" checked={audition.on_move} onchange={(e) => change({ on_move: e.currentTarget.checked })} />
+    Audition each patch as you move with the arrow keys
+  </label>
+
+  <label class="check">
     <input type="checkbox" checked={audition.play_note} onchange={(e) => change({ play_note: e.currentTarget.checked })} />
     Play a note after loading the patch
   </label>

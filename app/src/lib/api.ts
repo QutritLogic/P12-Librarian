@@ -30,6 +30,8 @@ export interface AuditionSettings {
   length_ms: number;
   /** 1-16, or 0 for the channel set on the synth. */
   channel: number;
+  /** Audition each patch the arrow keys move to. */
+  on_move: boolean;
 }
 
 export interface Settings {
