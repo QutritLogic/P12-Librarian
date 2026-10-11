@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SvelteMap } from 'svelte/reactivity';
+  import { getVersion } from '@tauri-apps/api/app';
   import { listen } from '@tauri-apps/api/event';
   import { open, save } from '@tauri-apps/plugin-dialog';
   import AboutDialog from './lib/AboutDialog.svelte';
@@ -660,7 +661,10 @@
     start();
   }
 
+  let version = $state('');
+
   onMount(() => {
+    getVersion().then((v) => (version = v));
     const unlisten = onProgress((p) => (progress = p));
     const unlistenMenu = listen<string>('menu', (event) => menuAction(event.payload));
     // Ctrl+wheel must cancel the webview's own handling, so the listener can't be passive.
@@ -887,8 +891,9 @@
       >
     {/if}
   {:else}
-    <span class="muted">Double-click a patch, or press Space, to audition it. Right-click for more, e.g. Cleanify names. Press F1 for the user guide.</span>
+    <span class="muted label">Double-click a patch, or press Space, to audition it. Right-click for more, e.g. Cleanify names. Press F1 for the user guide.</span>
   {/if}
+  {#if version}<span class="version" title="P12 Librarian {version}">v{version}</span>{/if}
 </footer>
 
 {#if swapping}
@@ -1094,6 +1099,17 @@
   }
   footer .cancel {
     margin-left: auto;
+  }
+  /* Always at the right end, after Cancel or Undo when they're shown. */
+  footer .version {
+    flex: none;
+    margin-left: auto;
+    padding-left: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  footer .cancel + .version {
+    margin-left: 0;
   }
   .muted {
     color: var(--muted);

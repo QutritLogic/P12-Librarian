@@ -13,6 +13,10 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- The version number is shown at the bottom right of the main window.
+
 ## [0.7.1] - 2026-10-11
 
 ### Added
