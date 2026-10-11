@@ -22,6 +22,10 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
   with a patch when it's moved, renamed or saved to a file. They're kept in `tags.json` next to the settings.
 - The version number is shown at the bottom right of the main window.
 
+### Changed
+
+- A cleaner About box, with a photo of a Prophet 12 in Qutrit's studio.
+
 ## [0.7.1] - 2026-10-11
 
 ### Added
