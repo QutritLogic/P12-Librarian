@@ -28,9 +28,15 @@ Run and build:
 ```bash
 cd app
 npm run tauri dev      # development, with hot reload of the frontend
-npm run tauri build    # release .deb and AppImage in target/release/bundle/
+APPIMAGE_EXTRACT_AND_RUN=1 NO_STRIP=true npm run tauri build
+                       # release .deb and AppImage in target/release/bundle/
 npm run check          # type-check the frontend
 ```
+
+`APPIMAGE_EXTRACT_AND_RUN=1` lets the AppImage tools run without FUSE, and `NO_STRIP=true`
+stops them stripping the bundled libraries (the 0.7.0 AppImage was built this way). Building the
+AppImage downloads Tauri's AppImage tools from GitHub the first time. Both packages need
+glibc 2.39 or newer (Ubuntu 24.04, Debian 13, Fedora 40) when built on Linux Mint 22.
 
 ### Windows installer, built on Linux
 
