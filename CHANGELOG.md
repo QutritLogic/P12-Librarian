@@ -13,6 +13,12 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Fixed
+
+- On Linux, after opening Appearance with Ctrl+Shift+A, dragging a patch to another slot on
+  the synth offered to copy it (the Write dialog) instead of swapping the two, until the
+  app was restarted. Ctrl is now read from the keyboard itself when a patch is dropped.
+
 ## [0.7.0] - 2026-10-10
 
 ### Added

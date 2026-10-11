@@ -8,7 +8,7 @@
 </script>
 
 <script lang="ts">
-  import { highlightParts } from './api';
+  import { api, highlightParts } from './api';
 
   /** Where on a row something is dropped: the whole slot, or just its Layer B. */
   export type DropZone = 'row' | 'layerB';
@@ -200,21 +200,28 @@
       return;
     }
     event.preventDefault();
+    // Only the cursor; drop() asks whether Ctrl is really held.
     const move = zone === 'row' && !event.ctrlKey && rearranges(dragSource === self);
     if (event.dataTransfer) event.dataTransfer.dropEffect = move ? 'move' : 'copy';
     dropIndex = index;
     dropZone = zone;
   }
 
-  function drop(event: DragEvent, row: Row) {
+  async function drop(event: DragEvent, row: Row) {
     event.preventDefault();
     const ids = draggingIds;
     const zone = dropZone;
-    const info = { sameTable: dragSource === self, copy: event.ctrlKey };
+    const sameTable = dragSource === self;
+    const eventCtrl = event.ctrlKey;
     draggingIds = [];
     dragSource = null;
     dropIndex = null;
-    if (onDrop && ids.length > 0) onDrop(row, ids, zone, info);
+    if (!onDrop || ids.length === 0) return;
+    // On Linux, ask the windowing system: WebKitGTK can report Ctrl inverted
+    // on drag events after a menu shortcut (see ctrl_held in commands.rs).
+    const held = await api.ctrlHeld().catch(() => null);
+    const copy = held ?? eventCtrl;
+    onDrop(row, ids, zone, { sameTable, copy });
   }
 
   function inDropRange(index: number): boolean {

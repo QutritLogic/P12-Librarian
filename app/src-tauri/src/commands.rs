@@ -286,6 +286,21 @@ pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<u
     .await
 }
 
+/// Whether Ctrl is held right now, from the windowing system. On Linux,
+/// WebKitGTK's drag events can report Ctrl wrongly: after a menu shortcut such
+/// as Ctrl+Shift+A it stays inverted until the app restarts. None where the drag
+/// events can be trusted. Not async, so it runs on the main (GTK) thread.
+#[tauri::command]
+pub fn ctrl_held() -> Option<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        let keymap = gdk::Keymap::for_display(&gdk::Display::default()?)?;
+        Some(keymap.modifier_state() & gdk::ModifierType::CONTROL_MASK.bits() != 0)
+    }
+    #[cfg(not(target_os = "linux"))]
+    None
+}
+
 #[tauri::command]
 pub fn disconnect(state: tauri::State<'_, AppState>) {
     close_synth(&state);

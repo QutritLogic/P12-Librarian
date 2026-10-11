@@ -77,6 +77,8 @@ export const api = {
   listPorts: () => invoke<Ports>('list_ports'),
   connect: (input: number, output: number) => invoke<number>('connect', { input, output }),
   disconnect: () => invoke<void>('disconnect'),
+  /** Whether Ctrl is held now, or null where drag events' ctrlKey can be trusted. */
+  ctrlHeld: () => invoke<boolean | null>('ctrl_held'),
   readPrograms: (selection: string) =>
     invoke<{ patches: Patch[]; complete: boolean }>('read_programs', { selection }),
   cancel: () => invoke<void>('cancel'),

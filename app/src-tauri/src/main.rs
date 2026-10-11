@@ -25,6 +25,7 @@ fn main() {
             commands::list_ports,
             commands::connect,
             commands::disconnect,
+            commands::ctrl_held,
             commands::read_programs,
             commands::cancel,
             commands::open_syx,
