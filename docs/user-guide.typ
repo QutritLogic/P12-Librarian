@@ -7,7 +7,7 @@
 #let muted = rgb("#6b7380")
 #let soft = rgb("#eef2f8")
 
-#set document(title: "P12 Librarian — User Guide", author: "Qutrit")
+#set document(title: "P12 Librarian — User Guide", author: "Qutrit and Claude")
 #set page(
   paper: "a4",
   margin: (x: 2.2cm, top: 2.2cm, bottom: 2.4cm),
@@ -664,7 +664,8 @@ For the curious, and for anyone building on this work.
 
 #image("../app/src/assets/brand/lockup-on-light.svg", width: 5cm)
 
-P12 Librarian is made by *Qutrit*. Contact: #link("mailto:qutritlogic@proton.me")[qutritlogic\@proton.me]. Website, with new versions:
+P12 Librarian is made by *Qutrit* and *Claude* (Opus 5.5), an AI model made by Anthropic.
+Contact: #link("mailto:qutritlogic@proton.me")[qutritlogic\@proton.me]. Website, with new versions:
 #link("https://qutrit.se/p12-librarian/")[qutrit.se/p12-librarian].
 
 The *Prophet 12* was designed by *Dave Smith Instruments (DSI)*, founded by Dave Smith, and released in 2013. The

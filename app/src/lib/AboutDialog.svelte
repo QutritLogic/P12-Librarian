@@ -25,6 +25,7 @@
       <div class="name">P12 Librarian</div>
       <div class="muted">Patch librarian for the Sequential Prophet 12</div>
       <div class="muted">Version {version}</div>
+      <div class="muted">Made by Qutrit and Claude (Anthropic)</div>
     </div>
   </div>
 
