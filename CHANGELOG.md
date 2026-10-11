@@ -13,6 +13,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-10-11
+
 ### Fixed
 
 - The search box in the File pane could stick out past the right edge of the window.
@@ -140,7 +142,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...v0.7.1

@@ -5,7 +5,7 @@ members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli", "app/src-taur
 default-members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli"]
 
 [workspace.package]
-version = "0.8.1"
+version = "0.8.2"
 edition = "2024"
 # Freeware, see LICENSE. Not published to crates.io.
 license-file = "LICENSE"
