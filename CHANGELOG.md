@@ -13,6 +13,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-10-11
+
 ### Fixed
 
 - Copying a patch into Layer B of a tagged or favourite patch made it lose its tags and favourite mark.
@@ -134,7 +136,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.6.0...v0.7.0
