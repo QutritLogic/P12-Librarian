@@ -13,11 +13,20 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-11
+
+### Added
+
+- An AppImage for other 64-bit Linux distributions (Fedora 40, Arch, openSUSE Tumbleweed and
+  others from 2024 on). It runs without installing and has no `p12` command-line tool.
+
 ### Fixed
 
 - On Linux, after opening Appearance with Ctrl+Shift+A, dragging a patch to another slot on
   the synth offered to copy it (the Write dialog) instead of swapping the two, until the
   app was restarted. Ctrl is now read from the keyboard itself when a patch is dropped.
+- The user guide named Debian 12, Ubuntu 22.04 and Linux Mint 21 as supported, but the app
+  needs Ubuntu 24.04, Linux Mint 22, Debian 13 or newer.
 
 ## [0.7.0] - 2026-10-10
 
@@ -103,7 +112,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.4.0...v0.5.0

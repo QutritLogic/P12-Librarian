@@ -2,7 +2,7 @@
 // Build: docs/build.sh (needs the `typst` CLI). Output goes to
 // app/src-tauri/resources/user-guide.pdf, which the app opens on F1.
 
-#let version = "0.7.0"
+#let version = "0.7.1"
 #let accent = rgb("#2f6fd6")
 #let muted = rgb("#6b7380")
 #let soft = rgb("#eef2f8")
@@ -145,10 +145,18 @@ What was verified on the hardware above, beyond what the manual documents:
 Download P12 Librarian from #link("https://qutrit.se/p12-librarian/")[qutrit.se/p12-librarian]. Installing a
 newer version over an older one keeps your settings and backups.
 
-/ Linux: Debian 12, Ubuntu 22.04, Linux Mint 21 or newer, 64-bit. Install the `.deb` package from a terminal in
-  the folder you downloaded it to, then start P12 Librarian from the applications menu:
+/ Linux: Ubuntu 24.04, Linux Mint 22, Debian 13 or newer, 64-bit. Install the `.deb` package from a terminal
+  in the folder you downloaded it to, then start P12 Librarian from the applications menu:
   ```sh
   sudo apt install ./p12-librarian_<version>_amd64.deb
+  ```
+
+/ Other Linux: Fedora 40, Arch, openSUSE Tumbleweed and other 64-bit distributions from 2024 on. Download the
+  AppImage, make it executable and start it; nothing is installed. If it doesn't start, install FUSE 2
+  (`libfuse2`, on Ubuntu 24.04 `libfuse2t64`).
+  ```sh
+  chmod +x P12-Librarian_<version>_x86_64.AppImage
+  ./P12-Librarian_<version>_x86_64.AppImage
   ```
 
 / Windows: Windows 11, 64-bit. Run the downloaded `setup.exe`. Windows shows #emph[“Windows protected your
@@ -156,7 +164,7 @@ newer version over an older one keeps your settings and backups.
   start P12 Librarian from the Start menu. It installs for your user account only and needs no administrator
   rights; uninstall it in #ui[Settings → Apps].
 
-The command-line tool `p12` (@cli) is only included in the Linux version for now.
+The command-line tool `p12` (@cli) is only included in the Linux `.deb` package for now.
 
 == Settings on the synth <settings-on-the-synth>
 
