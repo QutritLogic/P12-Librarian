@@ -13,6 +13,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-11
+
 ### Added
 
 - Favourites: click the ☆ next to a patch, or press F, to mark it; the ★ button next to each search box shows
@@ -128,7 +130,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.5.0...v0.6.0
