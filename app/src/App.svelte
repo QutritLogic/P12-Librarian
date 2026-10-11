@@ -39,6 +39,7 @@
     type RestorePoint,
     type AuditionSettings,
     type Settings,
+    type TagChange,
     type TagEntry,
     type WriteRequest,
   } from './lib/api';
@@ -302,23 +303,81 @@
     info('Disconnected.');
   }
 
-  async function readPrograms(selection: string): Promise<boolean> {
+  /**
+   * Reads programs from the synth. Returns whether all were read, the slots that
+   * differ from what was read before, and the slots whose tags were kept: a slot
+   * that held a tagged or favourite sound and now holds a different one was
+   * changed on the synth (changes made in the app update synthPatches directly),
+   * so the new sound gets the old one's tags and favourite mark.
+   */
+  async function readPrograms(selection: string): Promise<{ complete: boolean; changed: string[]; kept: string[] }> {
     const result = await api.readPrograms(selection);
-    for (const p of result.patches) synthPatches.set(p.location!, p);
-    return result.complete;
+    const changed: string[] = [];
+    const kept: string[] = [];
+    const carry: TagChange[] = [];
+    for (const p of result.patches) {
+      const location = p.location!;
+      const before = synthPatches.get(location);
+      if (before && (before.fingerprint !== p.fingerprint || before.name !== p.name)) changed.push(location);
+      const entry = before && before.fingerprint !== p.fingerprint ? tagStore.get(before.fingerprint) : undefined;
+      if (entry && (entry.tags?.length || entry.favourite)) {
+        carry.push({
+          fingerprint: p.fingerprint,
+          name: p.name,
+          add: entry.tags ?? [],
+          ...(entry.favourite ? { favourite: true } : {}),
+        });
+        kept.push(location);
+      }
+      synthPatches.set(location, p);
+    }
+    if (carry.length > 0) setTags(await api.updateTags(carry));
+    return { complete: result.complete, changed, kept };
+  }
+
+  /** Slots as a short list, e.g. "U3:14, U4:02" or "5 slots". */
+  function slotList(locations: string[]): string {
+    return locations.length <= 3 ? locations.join(', ') : `${locations.length} slots`;
+  }
+
+  /** Status text for slots whose tags were kept after a change on the synth. */
+  function keptNote(kept: string[]): string {
+    if (kept.length === 0) return '';
+    const whose = kept.length === 1 ? 'its' : 'their';
+    return ` ${slotList(kept)} changed on the synth; ${whose} tags and favourite mark were kept.`;
   }
 
   function readBank() {
     return run(`Reading ${bank}`, async () => {
-      const complete = await readPrograms(bank);
-      info(complete ? `Read bank ${bank}.` : 'Reading cancelled.');
+      const { complete, kept } = await readPrograms(bank);
+      info((complete ? `Read bank ${bank}.` : 'Reading cancelled.') + keptNote(kept));
     }, true);
   }
 
   function readAllUser() {
     return run('Reading all User banks', async () => {
-      const complete = await readPrograms('user');
-      info(complete ? 'Read all 4 User banks (396 programs).' : 'Reading cancelled.');
+      const { complete, kept } = await readPrograms('user');
+      info((complete ? 'Read all 4 User banks (396 programs).' : 'Reading cancelled.') + keptNote(kept));
+    }, true);
+  }
+
+  /** Reads the selected slots again, e.g. after saving an edit on the synth. */
+  function reRead(patches: Patch[]) {
+    const locations = patches.map((p) => p.location!);
+    if (!connected || locations.length === 0) return;
+    return run('Re-reading', async () => {
+      const { complete, changed, kept } = await readPrograms(locations.join(','));
+      if (!complete) return info('Reading cancelled.');
+      const head = `Re-read ${locations.length === 1 ? locations[0] : `${locations.length} slots`}`;
+      if (changed.length === 0) return info(`${head}: no changes.`);
+      const whose = changed.length === 1 ? 'its' : 'their';
+      const tags =
+        kept.length === 0
+          ? ''
+          : kept.length === changed.length
+            ? `; ${whose} tags and favourite mark were kept`
+            : `; the tags of ${slotList(kept)} were kept`;
+      info(`${head}: ${changed.length === 1 && locations.length === 1 ? 'it' : slotList(changed)} had changed on the synth${tags}.`);
     }, true);
   }
 
@@ -334,7 +393,7 @@
     const path = await save({ defaultPath: `${backupDir}/p12-backup-${timestamp()}.syx`, filters: syxFilter });
     if (!path) return;
     await run('Backing up all User banks', async () => {
-      if (!(await readPrograms('user'))) {
+      if (!(await readPrograms('user')).complete) {
         info('Backup cancelled; nothing was saved.');
         return;
       }
@@ -575,6 +634,15 @@
         ...(pane === 'synth'
           ? [
               {
+                label: 'Re-read from synth',
+                shortcut: 'R',
+                action: () => reRead(patches),
+                disabled: !connected || !!busy,
+                title: connected
+                  ? 'Read these slots again, e.g. after saving an edit on the synth'
+                  : 'Connect to the Prophet 12 first',
+              },
+              {
                 label: one ? 'Initialize…' : `Initialize ${patches.length}…`,
                 action: () => (initializing = patches.map((p) => p.location!)),
                 disabled: initBlocked() !== null,
@@ -704,6 +772,8 @@
       if (connected && !busy) startWrite(selectedFile);
     } else if (key.toLowerCase() === 'f' && !event.ctrlKey && !event.altKey) {
       toggleFavourite(selected);
+    } else if (key.toLowerCase() === 'r' && !event.ctrlKey && !event.altKey && activePane === 'synth') {
+      if (!busy) reRead(selectedSynth);
     } else if (key.toLowerCase() === 't' && !event.ctrlKey && !event.altKey) {
       if (selected.length > 0) tagging = selected;
     } else if (key === 'Delete' && activePane === 'synth') {

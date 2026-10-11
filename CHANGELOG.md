@@ -20,6 +20,9 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 - Tags: press T, or right-click → Tags…, to tag the selected patches. Tags show after the name; click one, or
   search for `#tag`, to find the patches that have it. Tags and favourites belong to the sound, so they stay
   with a patch when it's moved, renamed or saved to a file. They're kept in `tags.json` next to the settings.
+- Re-read from synth (R, or right-click) reads the selected slots again, e.g. after saving an edit on the
+  synth, and says which had changed. When a tagged or favourite slot has changed on the synth since it was last
+  read, the new version keeps its tags and favourite mark.
 - The version number is shown at the bottom right of the main window.
 
 ### Changed

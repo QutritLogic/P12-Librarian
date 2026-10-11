@@ -293,6 +293,10 @@ the #ui[Layer B] column shows the second layer's name (@layer-b).
 
 A progress bar shows each program as it arrives. #ui[Cancel] stops reading; programs read so far are kept.
 
+The app doesn't notice changes made on the synth itself: the Prophet 12 sends nothing when you save with
+#ui[Write]. After saving an edit on the synth, select the slot and press #key("R"), or right-click →
+#ui[Re-read from synth], to read just that slot again. The status line says which slots had changed.
+
 == Backing up everything
 
 #ui[Back up all…] (#key("Ctrl", "B"), also in the #ui[File] menu) asks where to save, reads all four User banks
@@ -496,7 +500,12 @@ on the synth or changed in your `.syx` files.
 Tags and favourites belong to the *sound*, not to the slot or the name. They stay with a patch when it's
 swapped, written to another slot, renamed, saved to a file or restored from a backup, and they show up on the
 same patch in any `.syx` file. Patches that sound exactly the same share them, so tagging one unedited
-“Basic Program” tags them all. Changing the sound on the synth makes it a new patch without tags.
+“Basic Program” tags them all.
+
+Editing a patch on the synth changes its sound. When the app reads that slot again (#key("R"), or reading the
+bank), it sees that the slot changed since it last read it and gives the new version the old one's tags and
+favourite mark; the old version keeps them too, for your backups. This works for slots read since the app was
+started; a change made while the app was closed gives an untagged patch.
 
 = Safety and backups <safety>
 
@@ -584,6 +593,7 @@ Zoom (80–250%), font and theme are remembered.
   [#key("F2")], [Rename the selected patches],
   [#key("F")], [Mark or unmark the selected patches as favourites],
   [#key("T")], [Tags for the selected patches],
+  [#key("R")], [Prophet 12 pane: read the selected slots again],
   [#key("Space")], [Audition the selected patch],
   [#key("↑") #key("↓")], [Move through the list; with #key("Shift"), extend the selection],
   [#key("Home") #key("End")], [First or last patch],
