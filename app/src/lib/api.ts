@@ -7,7 +7,35 @@ export interface Patch {
   location: string | null;
   name: string;
   layerB: string;
+  /** Identifies the sound (not the name), for tags and favourites. */
+  fingerprint: string;
 }
+
+/** A sound's tags and favourite mark. */
+export interface TagEntry {
+  tags?: string[];
+  favourite?: boolean;
+  /** The name it had when last tagged. */
+  name: string;
+}
+
+/** A change to one patch's tags: tags to add and remove, and optionally its favourite mark. */
+export interface TagChange {
+  fingerprint: string;
+  name: string;
+  add?: string[];
+  remove?: string[];
+  favourite?: boolean;
+}
+
+/** A tag as the app stores it (same rules as clean_tag in tags.rs), or null if nothing is left. */
+export function cleanTag(tag: string): string | null {
+  const cleaned = tag.trim().replace(/^#+/, '').trim().split(/\s+/).filter(Boolean).join('-').slice(0, 32);
+  return cleaned || null;
+}
+
+/** Offered in the Tags dialog alongside the user's own tags. */
+export const STARTER_TAGS = ['Pad', 'Bass', 'Lead', 'Keys', 'Strings', 'Brass', 'Pluck', 'FX', 'Arp', 'Split'];
 
 export interface Ports {
   inputs: string[];
@@ -112,6 +140,8 @@ export const api = {
   disclaimerAccepted: () => invoke<boolean>('disclaimer_accepted'),
   acceptDisclaimer: () => invoke<void>('accept_disclaimer'),
   quit: () => invoke<void>('quit'),
+  getTags: () => invoke<Record<string, TagEntry>>('get_tags'),
+  updateTags: (changes: TagChange[]) => invoke<Record<string, TagEntry>>('update_tags', { changes }),
 };
 
 export function onProgress(handler: (p: Progress) => void): Promise<UnlistenFn> {
@@ -154,9 +184,26 @@ export function errorText(e: unknown): string {
   return typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
 }
 
-/** Lowercase search words from a query; empty when the query is blank. */
+/** Lowercase search words from a query, leaving out `#tag` words; empty when there are none. */
 export function searchTerms(query: string): string[] {
-  return query.toLowerCase().split(/\s+/).filter(Boolean);
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w && !w.startsWith('#'));
+}
+
+/** Lowercase tags searched for with `#tag` in a query, without the `#`. */
+export function searchTags(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.startsWith('#') && w.length > 1)
+    .map((w) => w.slice(1));
+}
+
+/** True if every searched tag starts one of the patch's tags, ignoring case. */
+export function matchesTags(searched: string[], tags: string[]): boolean {
+  return searched.every((s) => tags.some((t) => t.toLowerCase().startsWith(s)));
 }
 
 /** True if every term occurs in the patch name or its slot. */

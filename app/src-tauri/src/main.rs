@@ -3,6 +3,7 @@
 mod commands;
 mod menu;
 mod settings;
+mod tags;
 
 use tauri::Manager;
 
@@ -12,6 +13,7 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .manage(commands::AppState::default())
         .manage(settings::SettingsState::default())
+        .manage(tags::TagState::default())
         .menu(menu::build)
         .setup(|app| {
             let handle = app.handle();
@@ -52,6 +54,8 @@ fn main() {
             settings::disclaimer_accepted,
             settings::accept_disclaimer,
             settings::quit,
+            tags::get_tags,
+            tags::update_tags,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the application");

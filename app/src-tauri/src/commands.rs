@@ -147,6 +147,8 @@ pub struct PatchSummary {
     location: Option<String>,
     name: String,
     layer_b: String,
+    /// Identifies the sound, for tags and favourites (see tags.rs).
+    fingerprint: String,
 }
 
 impl PatchSummary {
@@ -156,6 +158,7 @@ impl PatchSummary {
             location: location.map(|l| l.to_string()),
             name: program.name(),
             layer_b: program.layer_b_name(),
+            fingerprint: program.fingerprint(),
         }
     }
 }

@@ -15,6 +15,11 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ### Added
 
+- Favourites: click the ☆ next to a patch, or press F, to mark it; the ★ button next to each search box shows
+  only favourites.
+- Tags: press T, or right-click → Tags…, to tag the selected patches. Tags show after the name; click one, or
+  search for `#tag`, to find the patches that have it. Tags and favourites belong to the sound, so they stay
+  with a patch when it's moved, renamed or saved to a file. They're kept in `tags.json` next to the settings.
 - The version number is shown at the bottom right of the main window.
 
 ## [0.7.1] - 2026-10-11

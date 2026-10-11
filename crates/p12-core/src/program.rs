@@ -71,6 +71,22 @@ impl Program {
         Program { data }
     }
 
+    /// Identifies the sound: a hash of the program with its Layer A (panel) name
+    /// left out, so it stays the same when the program is renamed, moved to
+    /// another slot or saved to a file. Programs that sound the same share it.
+    /// 16 hex digits (64-bit FNV-1a); stored in the tags file, so it must not
+    /// change between versions.
+    pub fn fingerprint(&self) -> String {
+        let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+        for (offset, &byte) in self.data.iter().enumerate() {
+            if !LAYER_A_NAME.contains(&offset) {
+                hash ^= u64::from(byte);
+                hash = hash.wrapping_mul(0x0100_0000_01b3);
+            }
+        }
+        format!("{hash:016x}")
+    }
+
     /// Sets the Layer A (panel) name, padded with spaces as the synth does.
     pub fn set_name(&mut self, name: &str) -> Result<()> {
         name::validate(name)?;
@@ -185,6 +201,32 @@ mod tests {
         assert_eq!(
             &copied.as_bytes()[LAYER_SIZE..],
             &program.as_bytes()[..LAYER_SIZE]
+        );
+    }
+
+    #[test]
+    fn fingerprint_ignores_the_panel_name_only() {
+        let mut program = named("Brass Pad");
+        let original = program.fingerprint();
+        assert_eq!(original.len(), 16);
+        program.set_name("Renamed").unwrap();
+        assert_eq!(program.fingerprint(), original);
+
+        let mut data = *program.as_bytes();
+        data[0] ^= 1; // a sound parameter
+        assert_ne!(Program::from_bytes(&data).unwrap().fingerprint(), original);
+        let mut data = *program.as_bytes();
+        data[LAYER_B_NAME.start] = b'X'; // Layer B's name is part of the sound's layer
+        assert_ne!(Program::from_bytes(&data).unwrap().fingerprint(), original);
+    }
+
+    #[test]
+    fn fingerprint_is_stable() {
+        // Saved in users' tag files: changing the hash would lose their tags.
+        let data: Vec<u8> = (0..PROGRAM_SIZE).map(|i| (i % 251) as u8).collect();
+        assert_eq!(
+            Program::from_bytes(&data).unwrap().fingerprint(),
+            "3fe9ba672eb4fcf9"
         );
     }
 

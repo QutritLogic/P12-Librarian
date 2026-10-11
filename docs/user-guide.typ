@@ -470,6 +470,8 @@ Type in the search box above either list, or press #key("Ctrl", "F") to jump to 
 - In the Prophet 12 pane the search covers *every bank that has been read*, not just the open tab. Each tab
   shows its number of matches; click a tab to clear the search and open that bank. Use
   #ui[Read all User banks] first to search everything.
+- `#pad` finds patches tagged Pad (see the next section). Tags and words can be combined: `#pad warm`.
+- The #ui[★] button next to the search box shows only favourites; it works together with the search.
 - Matching letters are highlighted.
 
 #note[
@@ -477,6 +479,24 @@ Type in the search box above either list, or press #key("Ctrl", "F") to jump to 
   can't be dropped onto the Prophet 12 list, because the slots they would fill might be hidden. Dropping onto a
   Layer B cell still works.
 ]
+
+= Tags and favourites <tags>
+
+Tags and favourites help you find patches again. They are kept by the app on your computer; nothing is stored
+on the synth or changed in your `.syx` files.
+
+- *Favourites:* click the #ui[☆] next to a patch, or select patches and press #key("F"). Press it again to
+  remove the mark. The #ui[★] button next to the search box shows only favourites.
+- *Tags:* select one or more patches and press #key("T"), or right-click → #ui[Tags…]. Type a tag and press
+  #key("Enter"), or click a suggestion; #key("Enter") in the empty field saves. Spaces in a tag become
+  hyphens, so `warm pad` is stored as `warm-pad`. With several patches selected, tags that only some of them
+  have are shown dashed with a count; #ui[+] gives all of them the tag.
+- Tags appear after the name. Click one to show all patches with that tag, or search for it with `#tag`.
+
+Tags and favourites belong to the *sound*, not to the slot or the name. They stay with a patch when it's
+swapped, written to another slot, renamed, saved to a file or restored from a backup, and they show up on the
+same patch in any `.syx` file. Patches that sound exactly the same share them, so tagging one unedited
+“Basic Program” tags them all. Changing the sound on the synth makes it a new patch without tags.
 
 = Safety and backups <safety>
 
@@ -547,6 +567,7 @@ Zoom (80–250%), font and theme are remembered.
   table.header([], [*Linux*], [*Windows*]),
   [Backups], [`~/Documents/Prophet 12 Backups/`], [`Documents\Prophet 12 Backups\`],
   [Settings], [`~/.config/app.p12librarian/settings.json`], [`%APPDATA%\app.p12librarian\settings.json`],
+  [Tags and favourites], [`~/.config/app.p12librarian/tags.json`], [`%APPDATA%\app.p12librarian\tags.json`],
   [Init template], [`~/.local/share/app.p12librarian/init-template.syx`], [`%APPDATA%\app.p12librarian\init-template.syx`],
 )
 
@@ -561,6 +582,8 @@ Zoom (80–250%), font and theme are remembered.
   [#key("Ctrl", "B")], [Back up all User banks],
   [#key("Ctrl", "F")], [Search in the pane used last],
   [#key("F2")], [Rename the selected patches],
+  [#key("F")], [Mark or unmark the selected patches as favourites],
+  [#key("T")], [Tags for the selected patches],
   [#key("Space")], [Audition the selected patch],
   [#key("↑") #key("↓")], [Move through the list; with #key("Shift"), extend the selection],
   [#key("Home") #key("End")], [First or last patch],

@@ -28,6 +28,8 @@
     layerB: string;
     /** null for a slot that hasn't been read. */
     id: number | null;
+    tags: string[];
+    favourite: boolean;
   }
 
   interface Props {
@@ -49,6 +51,12 @@
     emptyText?: string;
     /** Search terms to highlight in names. */
     highlight?: string[];
+    /** Searched tags (lowercase, without `#`), to highlight the matching tags. */
+    highlightTags?: string[];
+    /** Click on a row's star. */
+    onToggleFavourite?: (row: Row) => void;
+    /** Click on one of a row's tags. */
+    onTagClick?: (tag: string) => void;
     /** The pane the keyboard acts on: shows the keyboard cursor. */
     active?: boolean;
   }
@@ -68,8 +76,13 @@
     onFocus,
     emptyText = 'Nothing here yet',
     highlight = [],
+    highlightTags = [],
+    onToggleFavourite,
+    onTagClick,
     active = false,
   }: Props = $props();
+
+  const tagMatches = (tag: string) => highlightTags.some((t) => tag.toLowerCase().startsWith(t));
 
   /** Where a Shift selection starts. */
   let anchor = $state<number | null>(null);
@@ -237,7 +250,7 @@
   {:else}
     <table>
       <thead>
-        <tr><th class="loc">Slot</th><th>Name</th><th>Layer B</th></tr>
+        <tr><th class="fav" title="Favourites">★</th><th class="loc">Slot</th><th>Name</th><th>Layer B</th></tr>
       </thead>
       <tbody ondragleave={() => (dropIndex = null)}>
         {#each rows as row, index (row.key)}
@@ -255,11 +268,35 @@
             ondragover={(e) => dragOver(e, index)}
             ondrop={(e) => drop(e, row)}
           >
+            <td class="fav">
+              {#if row.id !== null}
+                <!-- Not focusable, so the keyboard stays on the list. -->
+                <button
+                  class="star"
+                  class:on={row.favourite}
+                  tabindex="-1"
+                  aria-pressed={row.favourite}
+                  aria-label="Favourite"
+                  title={row.favourite ? 'Favourite. Click to remove (F).' : 'Click to mark as a favourite (F)'}
+                  onmousedown={(e) => e.preventDefault()}
+                  onclick={(e) => (e.stopPropagation(), onToggleFavourite?.(row))}
+                  ondblclick={(e) => e.stopPropagation()}>{row.favourite ? '★' : '☆'}</button
+                >
+              {/if}
+            </td>
             <td class="loc">{row.location}</td>
             <td>
               {#if row.id === null}—{:else}{#each highlightParts(row.name, highlight) as part}{#if part.match}<mark
                     >{part.text}</mark
-                  >{:else}{part.text}{/if}{/each}{/if}
+                  >{:else}{part.text}{/if}{/each}{#each row.tags as tag (tag)}<button
+                    class="tag"
+                    class:match={tagMatches(tag)}
+                    tabindex="-1"
+                    title="Show patches tagged “{tag}”"
+                    onmousedown={(e) => e.preventDefault()}
+                    onclick={(e) => (e.stopPropagation(), onTagClick?.(tag))}
+                    ondblclick={(e) => e.stopPropagation()}>{tag}</button
+                  >{/each}{/if}
             </td>
             <td class="layer-b" class:drop-cell={dropZone === 'layerB' && dropIndex === index}>{row.layerB}</td>
           </tr>
@@ -339,6 +376,58 @@
   }
   .layer-b {
     color: var(--muted);
+  }
+  .fav {
+    width: 1.6em;
+    padding-right: 0;
+    text-align: center;
+  }
+  .star {
+    border: none;
+    background: none;
+    padding: 0 2px;
+    font: inherit;
+    line-height: 1;
+    color: var(--muted);
+    opacity: 0.45;
+    cursor: pointer;
+  }
+  .star:hover {
+    opacity: 1;
+  }
+  .star.on {
+    color: var(--accent);
+    opacity: 1;
+  }
+  .tag {
+    margin-left: 6px;
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.5;
+    vertical-align: 1px;
+    cursor: pointer;
+  }
+  .tag:hover {
+    color: var(--text);
+    border-color: var(--accent);
+  }
+  .tag.match {
+    background: var(--highlight);
+    color: var(--text);
+  }
+  tr.selected .star,
+  tr.selected .star.on,
+  tr.selected .tag {
+    color: inherit;
+  }
+  tr.selected .tag {
+    background: transparent;
+    border-color: currentColor;
   }
   tr.selected .layer-b {
     color: inherit;

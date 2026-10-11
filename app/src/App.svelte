@@ -17,6 +17,7 @@
   import PatchTable, { type DropInfo, type DropZone, type Move, type Row } from './lib/PatchTable.svelte';
   import RenameDialog from './lib/RenameDialog.svelte';
   import SearchBox from './lib/SearchBox.svelte';
+  import TagsDialog from './lib/TagsDialog.svelte';
   import WriteDialog from './lib/WriteDialog.svelte';
   import {
     FACTORY_BANKS,
@@ -26,8 +27,10 @@
     errorText,
     isUserSlot,
     matchesSearch,
+    matchesTags,
     noteName,
     onProgress,
+    searchTags,
     searchTerms,
     type Patch,
     type Ports,
@@ -36,6 +39,7 @@
     type RestorePoint,
     type AuditionSettings,
     type Settings,
+    type TagEntry,
     type WriteRequest,
   } from './lib/api';
 
@@ -44,6 +48,22 @@
   let inputIndex = $state(-1);
   let outputIndex = $state(-1);
   let connected = $state(false);
+
+  // Tags and favourites, by sound (Patch.fingerprint), shared by both panes.
+  const tagStore = new SvelteMap<string, TagEntry>();
+  const tagsOf = (p: Patch | undefined) => (p ? (tagStore.get(p.fingerprint)?.tags ?? []) : []);
+  const isFavourite = (p: Patch | undefined) => !!p && !!tagStore.get(p.fingerprint)?.favourite;
+  /** Every tag in use, sorted. */
+  const knownTags = $derived(
+    [...new Set([...tagStore.values()].flatMap((e) => e.tags ?? []))].sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' }),
+    ),
+  );
+
+  function setTags(all: Record<string, TagEntry>) {
+    tagStore.clear();
+    for (const [fingerprint, entry] of Object.entries(all)) tagStore.set(fingerprint, entry);
+  }
 
   // Synth side: patches read from the synth, keyed by slot.
   const synthPatches = new SvelteMap<string, Patch>();
@@ -70,6 +90,8 @@
   let initializing = $state<string[] | null>(null);
   let layerCopy = $state<{ source: Patch; target: string } | null>(null);
   let swapping = $state<[string, string][] | null>(null);
+  /** Patches whose tags are being edited. */
+  let tagging = $state<Patch[] | null>(null);
   let contextMenu = $state<{ x: number; y: number; items: (MenuItem | null)[] } | null>(null);
 
   type Pane = 'synth' | 'file';
@@ -92,16 +114,35 @@
   let fileSearchInput = $state<HTMLInputElement>();
   const synthTerms = $derived(searchTerms(synthSearch));
   const fileTerms = $derived(searchTerms(fileSearch));
-  const synthSearching = $derived(synthTerms.length > 0);
+  const synthTagTerms = $derived(searchTags(synthSearch));
+  const fileTagTerms = $derived(searchTags(fileSearch));
+  /** Show only favourites (the ★ button by each search box). */
+  let synthFavOnly = $state(false);
+  let fileFavOnly = $state(false);
+  const synthSearching = $derived(synthTerms.length > 0 || synthTagTerms.length > 0 || synthFavOnly);
+  const fileFiltering = $derived(fileTerms.length > 0 || fileTagTerms.length > 0 || fileFavOnly);
+
+  /** True if a patch passes a pane's search: name words, #tags and the ★ filter. */
+  function passes(p: Patch, location: string, terms: string[], tagTerms: string[], favOnly: boolean): boolean {
+    return matchesSearch(terms, p.name, location) && matchesTags(tagTerms, tagsOf(p)) && (!favOnly || isFavourite(p));
+  }
 
   function synthRow(location: string): Row {
     const patch = synthPatches.get(location);
-    return { key: location, location, name: patch?.name ?? '', layerB: patch?.layerB ?? '', id: patch?.id ?? null };
+    return {
+      key: location,
+      location,
+      name: patch?.name ?? '',
+      layerB: patch?.layerB ?? '',
+      id: patch?.id ?? null,
+      tags: tagsOf(patch),
+      favourite: isFavourite(patch),
+    };
   }
 
   function synthMatches(location: string): boolean {
     const patch = synthPatches.get(location);
-    return patch !== undefined && matchesSearch(synthTerms, patch.name, location);
+    return patch !== undefined && passes(patch, location, synthTerms, synthTagTerms, synthFavOnly);
   }
 
   /** The open bank, or while searching, the matching patches from every bank that has been read. */
@@ -113,14 +154,17 @@
 
   const fileRows: Row[] = $derived(
     filePatches
-      .map((p, i) => ({
+      .map((p, i) => ({ p, location: p.location ?? `edit ${i + 1}` }))
+      .filter(({ p, location }) => passes(p, location, fileTerms, fileTagTerms, fileFavOnly))
+      .map(({ p, location }) => ({
         key: String(p.id),
-        location: p.location ?? `edit ${i + 1}`,
+        location,
         name: p.name,
         layerB: p.layerB,
         id: p.id,
-      }))
-      .filter((row) => matchesSearch(fileTerms, row.name, row.location)),
+        tags: tagsOf(p),
+        favourite: isFavourite(p),
+      })),
   );
 
   // Only patches that are visible count as selected, so a search never
@@ -156,8 +200,44 @@
     const read = synthPatches.size;
     if (read === 0) return 'Read a bank to search it.';
     const notAll = read < 792 ? ` Only the ${read} patches read so far are searched.` : '';
-    return `No patches match “${synthSearch.trim()}”.${notAll}`;
+    return `${noMatch(synthSearch, synthFavOnly)}${notAll}`;
   });
+
+  /** The empty-list text for a search and the ★ filter. */
+  function noMatch(search: string, favOnly: boolean): string {
+    const query = search.trim();
+    if (!query) return 'No favourites here yet. Click ☆ next to a patch, or press F, to mark one.';
+    return `No ${favOnly ? 'favourites' : 'patches'} match “${query}”.`;
+  }
+
+  /** Marks the patches as favourites, or unmarks them if they all are already. */
+  async function toggleFavourite(patches: Patch[]) {
+    if (patches.length === 0) return;
+    const favourite = !patches.every(isFavourite);
+    try {
+      setTags(await api.updateTags(patches.map((p) => ({ fingerprint: p.fingerprint, name: p.name, favourite }))));
+    } catch (e) {
+      message = { text: errorText(e), error: true };
+    }
+  }
+
+  async function saveTags(patches: Patch[], add: string[], remove: string[]) {
+    tagging = null;
+    if (add.length === 0 && remove.length === 0) return;
+    try {
+      setTags(await api.updateTags(patches.map((p) => ({ fingerprint: p.fingerprint, name: p.name, add, remove }))));
+      info(patches.length === 1 ? `Saved the tags for “${patches[0].name}”.` : `Saved the tags for ${patches.length} patches.`);
+    } catch (e) {
+      message = { text: errorText(e), error: true };
+    }
+  }
+
+  /** Clicking a tag on a row shows the pane's patches with that tag. */
+  function showTag(pane: Pane, tag: string) {
+    if (pane === 'synth') synthSearch = `#${tag}`;
+    else fileSearch = `#${tag}`;
+    activePane = pane;
+  }
 
   function info(text: string) {
     message = { text, error: false };
@@ -503,6 +583,20 @@
             ]
           : []),
         null,
+        {
+          label: patches.length > 0 && patches.every(isFavourite) ? 'Remove from favourites' : 'Add to favourites',
+          shortcut: 'F',
+          action: () => toggleFavourite(patches),
+          disabled: patches.length === 0,
+        },
+        {
+          label: one ? 'Tags…' : `Tags for ${patches.length}…`,
+          shortcut: 'T',
+          action: () => (tagging = patches),
+          disabled: patches.length === 0,
+          title: 'Add or remove tags, to find patches with #tag in the search box',
+        },
+        null,
         { label: 'Save selected…', action: () => saveSelected(patches) },
         pane === 'synth'
           ? { label: 'Save as separate files…', action: () => saveSeparately(patches) }
@@ -554,7 +648,8 @@
 
   function keydown(event: KeyboardEvent) {
     if (zoomKey(event)) return;
-    if (mustAccept || renaming || writing || initializing || layerCopy || swapping || dialog || contextMenu) return;
+    if (mustAccept || renaming || writing || initializing || layerCopy || swapping || tagging || dialog || contextMenu)
+      return;
     if (event.ctrlKey && event.key.toLowerCase() === 'f') {
       event.preventDefault();
       const input = activePane === 'synth' ? synthSearchInput : fileSearchInput;
@@ -607,6 +702,10 @@
       if (connected && !busy) audition(selected[0]);
     } else if (key === 'Enter' && activePane === 'file' && !(event.target instanceof HTMLButtonElement)) {
       if (connected && !busy) startWrite(selectedFile);
+    } else if (key.toLowerCase() === 'f' && !event.ctrlKey && !event.altKey) {
+      toggleFavourite(selected);
+    } else if (key.toLowerCase() === 't' && !event.ctrlKey && !event.altKey) {
+      if (selected.length > 0) tagging = selected;
     } else if (key === 'Delete' && activePane === 'synth') {
       if (selectedSynth.length > 0 && initBlocked() === null) initializing = selectedSynth.map((p) => p.location!);
     } else {
@@ -620,6 +719,7 @@
     const index = ALL_BANKS.indexOf(bank as (typeof ALL_BANKS)[number]);
     bank = ALL_BANKS[(index + direction + ALL_BANKS.length) % ALL_BANKS.length];
     synthSearch = '';
+    synthFavOnly = false;
     synthSelected = [];
     activePane = 'synth';
   }
@@ -665,6 +765,7 @@
 
   onMount(() => {
     getVersion().then((v) => (version = v));
+    api.getTags().then(setTags, (e) => (message = { text: errorText(e), error: true }));
     const unlisten = onProgress((p) => (progress = p));
     const unlistenMenu = listen<string>('menu', (event) => menuAction(event.payload));
     // Ctrl+wheel must cancel the webview's own handling, so the listener can't be passive.
@@ -751,7 +852,7 @@
             class="tab"
             class:active={!synthSearching && bank === b}
             class:factory={!isUserSlot(b)}
-            onclick={() => ((bank = b), (synthSearch = ''), (synthSelected = []))}
+            onclick={() => ((bank = b), (synthSearch = ''), (synthFavOnly = false), (synthSelected = []))}
             title={tabTitle(b)}
           >
             {b}
@@ -759,11 +860,20 @@
           </button>
         {/each}
       </div>
-      <SearchBox
-        bind:value={synthSearch}
-        bind:input={synthSearchInput}
-        title="Show matching patches from every bank that has been read (Ctrl+F). Several words must all match."
-      />
+      <div class="find">
+        <button
+          class="fav-filter"
+          class:on={synthFavOnly}
+          aria-pressed={synthFavOnly}
+          onclick={() => (synthFavOnly = !synthFavOnly)}
+          title="Show only favourites, from every bank that has been read">★</button
+        >
+        <SearchBox
+          bind:value={synthSearch}
+          bind:input={synthSearchInput}
+          title="Show matching patches from every bank that has been read (Ctrl+F). Several words must all match; #pad finds patches tagged Pad."
+        />
+      </div>
     </div>
     <PatchTable
       bind:this={synthTable}
@@ -775,6 +885,9 @@
       canDropOn={canDropOnSynth}
       rearranges={(sameTable) => sameTable}
       highlight={synthTerms}
+      highlightTags={synthTagTerms}
+      onToggleFavourite={(row) => toggleFavourite([synthPatches.get(row.location)!])}
+      onTagClick={(tag) => showTag('synth', tag)}
       emptyText={synthEmptyText}
       onActivate={(row) => audition(synthPatches.get(row.location))}
       onContextMenu={(e) => openContextMenu('synth', e)}
@@ -819,11 +932,20 @@
     </div>
     <div class="toolbar">
       <span class="muted">{filePatches.length ? `${filePatches.length} patches` : ''}</span>
-      <SearchBox
-        bind:value={fileSearch}
-        bind:input={fileSearchInput}
-        title="Show only matching patches in this file (Ctrl+F). Several words must all match."
-      />
+      <div class="find">
+        <button
+          class="fav-filter"
+          class:on={fileFavOnly}
+          aria-pressed={fileFavOnly}
+          onclick={() => (fileFavOnly = !fileFavOnly)}
+          title="Show only favourites in this file">★</button
+        >
+        <SearchBox
+          bind:value={fileSearch}
+          bind:input={fileSearchInput}
+          title="Show only matching patches in this file (Ctrl+F). Several words must all match; #pad finds patches tagged Pad."
+        />
+      </div>
     </div>
     <PatchTable
       bind:this={fileTable}
@@ -835,13 +957,16 @@
       onContextMenu={(e) => openContextMenu('file', e)}
       onFocus={() => (activePane = 'file')}
       highlight={fileTerms}
+      highlightTags={fileTagTerms}
+      onToggleFavourite={(row) => toggleFavourite(filePatches.filter((p) => p.id === row.id))}
+      onTagClick={(tag) => showTag('file', tag)}
       emptyText={filePatches.length
-        ? `No patches match “${fileSearch.trim()}”.`
+        ? noMatch(fileSearch, fileFavOnly)
         : 'Open a .syx file to see its patches. Drag them onto a slot on the left to write them.'}
     />
     <div class="actions footer">
       <span class="muted">
-        {#if fileTerms.length}{fileRows.length} found, {/if}{selectedFile.length} selected
+        {#if fileFiltering}{fileRows.length} found, {/if}{selectedFile.length} selected
       </span>
       <button
         onclick={() => audition(selectedFile[0])}
@@ -949,6 +1074,16 @@
   />
 {/if}
 
+{#if tagging}
+  <TagsDialog
+    patches={tagging}
+    entryOf={(fingerprint) => tagStore.get(fingerprint)}
+    known={knownTags}
+    onConfirm={(add, remove) => saveTags(tagging!, add, remove)}
+    onCancel={() => (tagging = null)}
+  />
+{/if}
+
 {#if contextMenu}
   <ContextMenu {...contextMenu} onClose={() => (contextMenu = null)} />
 {/if}
@@ -1048,8 +1183,23 @@
     justify-content: space-between;
     gap: 8px;
   }
+  /* With the ★ button beside it, as wide as the search box alone used to be. */
   .toolbar :global(.search) {
-    width: 220px;
+    width: 180px;
+  }
+  .find {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fav-filter {
+    padding: 4px 9px;
+    color: var(--muted);
+  }
+  .fav-filter.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
   }
   .tabs {
     display: flex;
