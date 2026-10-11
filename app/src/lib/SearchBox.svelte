@@ -31,6 +31,8 @@
   }
   input {
     flex: 1;
+    /* Shrink to the box's width instead of the field's natural width. */
+    min-width: 0;
     padding-right: 26px;
   }
   /* WebKit draws its own clear button on search inputs; we draw ours. */

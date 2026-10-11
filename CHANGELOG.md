@@ -13,6 +13,10 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Fixed
+
+- The search box in the File pane could stick out past the right edge of the window.
+
 ## [0.8.1] - 2026-10-11
 
 ### Fixed
