@@ -66,7 +66,7 @@
   </p>
 
   {#snippet buttons()}
-    <button onclick={() => openUrl(WEBSITE)} title={WEBSITE}>Website: qutrit.se</button>
+    <button class="link website" onclick={() => openUrl(WEBSITE)} title={WEBSITE}>Website</button>
     <button class="primary" onclick={onClose} title="Close (Esc)">Close</button>
   {/snippet}
 </Modal>
@@ -114,6 +114,10 @@
   .link:hover:not(:disabled) {
     background: none;
     filter: brightness(1.2);
+  }
+  /* On the left of the buttons row, away from Close. */
+  .website {
+    margin-right: auto;
   }
   .muted {
     color: var(--muted);
