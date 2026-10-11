@@ -498,7 +498,8 @@ on the synth or changed in your `.syx` files.
 - Tags appear after the name. Click one to show all patches with that tag, or search for it with `#tag`.
 
 Tags and favourites belong to the *sound*, not to the slot or the name. They stay with a patch when it's
-swapped, written to another slot, renamed, saved to a file or restored from a backup, and they show up on the
+swapped, written to another slot, renamed, given a new Layer B, saved to a file or restored from a backup,
+and they show up on the
 same patch in any `.syx` file. Patches that sound exactly the same share them, so tagging one unedited
 “Basic Program” tags them all.
 

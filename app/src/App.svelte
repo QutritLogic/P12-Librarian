@@ -310,6 +310,22 @@
    * changed on the synth (changes made in the app update synthPatches directly),
    * so the new sound gets the old one's tags and favourite mark.
    */
+  /**
+   * The tag change that gives `after` the tags and favourite mark of `before`,
+   * when the same slot now holds a different sound; null if there's nothing to carry.
+   */
+  function carryTags(before: Patch | undefined, after: Patch): TagChange | null {
+    if (!before || before.fingerprint === after.fingerprint) return null;
+    const entry = tagStore.get(before.fingerprint);
+    if (!entry || !(entry.tags?.length || entry.favourite)) return null;
+    return {
+      fingerprint: after.fingerprint,
+      name: after.name,
+      add: entry.tags ?? [],
+      ...(entry.favourite ? { favourite: true } : {}),
+    };
+  }
+
   async function readPrograms(selection: string): Promise<{ complete: boolean; changed: string[]; kept: string[] }> {
     const result = await api.readPrograms(selection);
     const changed: string[] = [];
@@ -319,14 +335,9 @@
       const location = p.location!;
       const before = synthPatches.get(location);
       if (before && (before.fingerprint !== p.fingerprint || before.name !== p.name)) changed.push(location);
-      const entry = before && before.fingerprint !== p.fingerprint ? tagStore.get(before.fingerprint) : undefined;
-      if (entry && (entry.tags?.length || entry.favourite)) {
-        carry.push({
-          fingerprint: p.fingerprint,
-          name: p.name,
-          add: entry.tags ?? [],
-          ...(entry.favourite ? { favourite: true } : {}),
-        });
+      const change = carryTags(before, p);
+      if (change) {
+        carry.push(change);
         kept.push(location);
       }
       synthPatches.set(location, p);
@@ -520,8 +531,14 @@
     const { source, target } = layerCopy!;
     layerCopy = null;
     return run('Copying into Layer B', async () => {
+      const before = synthPatches.get(target);
       const report = await api.copyToLayerB(source.id, target);
       for (const p of report.written) synthPatches.set(p.location!, p);
+      // The new Layer B changes the program's sound, and so its fingerprint; it's
+      // still the same patch, so it keeps its tags and favourite mark.
+      const after = report.written.find((p) => p.location === target);
+      const change = after && carryTags(before, after);
+      if (change) setTags(await api.updateTags([change]));
       changed(`Copied "${source.name}" into Layer B of ${target} and verified it.`, report.backupPath);
     });
   }

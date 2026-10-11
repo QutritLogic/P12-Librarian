@@ -13,6 +13,10 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Fixed
+
+- Copying a patch into Layer B of a tagged or favourite patch made it lose its tags and favourite mark.
+
 ## [0.8.0] - 2026-10-11
 
 ### Added
