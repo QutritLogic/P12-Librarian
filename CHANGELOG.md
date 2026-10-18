@@ -13,6 +13,20 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- Edit `.syx` files without a synth: start a new list (Ctrl+N), drag patches into it from the Prophet 12 pane,
+  add another file's patches, reorder by dragging, remove (Delete), renumber to consecutive User slots, and
+  save (Ctrl+S) or save as (Ctrl+Shift+S). A `*` marks unsaved changes, and the app asks before they're lost.
+- Compare: a column in both panes showing, by sound, whether each patch is the same, differs, is elsewhere or
+  is missing on the other side, with a summary above the File pane.
+- Duplicates: a ×2 badge after a name when the same sound is in the pane more than once.
+- Search words `is:dup`, `is:same`, `is:differs` and `is:missing`.
+
+### Fixed
+
+- Opening a file that can't be read no longer empties the File pane.
+
 ## [0.8.2] - 2026-10-11
 
 ### Fixed

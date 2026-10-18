@@ -30,7 +30,15 @@
     id: number | null;
     tags: string[];
     favourite: boolean;
+    /** How the row compares with the other pane, shown when comparing. */
+    compare?: { text: string; kind: CompareKind } | null;
+    /** Other places in this pane with the same sound. */
+    duplicates?: string[];
   }
+
+  /** same: identical; renamed: same sound, other name; differs: another sound in that
+   *  slot; elsewhere: found in another slot; missing: not found; unknown: can't tell. */
+  export type CompareKind = 'same' | 'renamed' | 'differs' | 'elsewhere' | 'missing' | 'unknown';
 
   interface Props {
     rows: Row[];
@@ -59,6 +67,10 @@
     onTagClick?: (tag: string) => void;
     /** The pane the keyboard acts on: shows the keyboard cursor. */
     active?: boolean;
+    /** Show the Compare column. */
+    showCompare?: boolean;
+    /** Drops below the last row, or into an empty table; called with the dragged ids and how. */
+    onDropEnd?: (ids: number[], info: DropInfo) => void;
   }
 
   /** Where the keyboard cursor moves: by rows, or to the first or last row. */
@@ -80,6 +92,8 @@
     onToggleFavourite,
     onTagClick,
     active = false,
+    showCompare = false,
+    onDropEnd,
   }: Props = $props();
 
   const tagMatches = (tag: string) => highlightTags.some((t) => tag.toLowerCase().startsWith(t));
@@ -237,6 +251,36 @@
     onDrop(row, ids, zone, { sameTable, copy });
   }
 
+  // Below the last row, or in an empty table: drops go to the end of the list.
+  let dropAtEnd = $state(false);
+
+  function dragOverEnd(event: DragEvent) {
+    if (!onDropEnd || draggingIds.length === 0) return;
+    // Over a row, the row's own handler decides.
+    if (event.target instanceof Element && event.target.closest('tbody tr')) {
+      dropAtEnd = false;
+      return;
+    }
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = dragSource === self ? 'move' : 'copy';
+    dropIndex = null;
+    dropAtEnd = true;
+  }
+
+  async function dropEnd(event: DragEvent) {
+    if (!onDropEnd || !dropAtEnd) return;
+    event.preventDefault();
+    const ids = draggingIds;
+    const sameTable = dragSource === self;
+    const eventCtrl = event.ctrlKey;
+    draggingIds = [];
+    dragSource = null;
+    dropAtEnd = false;
+    if (ids.length === 0) return;
+    const held = await api.ctrlHeld().catch(() => null);
+    onDropEnd(ids, { sameTable, copy: held ?? eventCtrl });
+  }
+
   function inDropRange(index: number): boolean {
     return (
       dropZone === 'row' && dropIndex !== null && index >= dropIndex && index < dropIndex + draggingIds.length
@@ -244,13 +288,26 @@
   }
 </script>
 
-<div class="table-wrap" class:active bind:this={wrap} role="presentation" onmousedown={() => onFocus?.()}>
+<div
+  class="table-wrap"
+  class:active
+  class:drop-end={dropAtEnd}
+  bind:this={wrap}
+  role="presentation"
+  onmousedown={() => onFocus?.()}
+  ondragover={dragOverEnd}
+  ondragleave={(e) => e.currentTarget === e.target && (dropAtEnd = false)}
+  ondrop={dropEnd}
+>
   {#if rows.length === 0}
     <p class="empty">{emptyText}</p>
   {:else}
     <table>
       <thead>
-        <tr><th class="fav" title="Favourites">★</th><th class="loc">Slot</th><th>Name</th><th>Layer B</th></tr>
+        <tr>
+          <th class="fav" title="Favourites">★</th><th class="loc">Slot</th><th>Name</th><th>Layer B</th>
+          {#if showCompare}<th class="cmp">Compare</th>{/if}
+        </tr>
       </thead>
       <tbody ondragleave={() => (dropIndex = null)}>
         {#each rows as row, index (row.key)}
@@ -296,9 +353,15 @@
                     onmousedown={(e) => e.preventDefault()}
                     onclick={(e) => (e.stopPropagation(), onTagClick?.(tag))}
                     ondblclick={(e) => e.stopPropagation()}>{tag}</button
-                  >{/each}{/if}
+                  >{/each}{#if row.duplicates?.length}<span
+                    class="dup"
+                    title="The same sound is also at {row.duplicates.join(', ')}">×{row.duplicates.length + 1}</span
+                  >{/if}{/if}
             </td>
             <td class="layer-b" class:drop-cell={dropZone === 'layerB' && dropIndex === index}>{row.layerB}</td>
+            {#if showCompare}
+              <td class="cmp {row.compare?.kind ?? ''}">{row.compare?.text ?? ''}</td>
+            {/if}
           </tr>
         {/each}
       </tbody>
@@ -307,6 +370,39 @@
 </div>
 
 <style>
+  /* Drop target below the last row. */
+  .table-wrap.drop-end {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+  .dup {
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    cursor: help;
+  }
+  th.cmp,
+  td.cmp {
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  td.cmp.same,
+  td.cmp.renamed {
+    color: var(--ok);
+  }
+  td.cmp.differs {
+    color: var(--danger);
+  }
+  td.cmp.elsewhere,
+  td.cmp.missing,
+  td.cmp.unknown {
+    color: var(--muted);
+  }
+  tr.selected td.cmp {
+    color: inherit;
+  }
   .table-wrap {
     flex: 1;
     overflow: auto;

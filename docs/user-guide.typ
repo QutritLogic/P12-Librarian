@@ -250,7 +250,8 @@ doesn't, see @troubleshooting.
 - *Prophet 12 pane (left):* the programs on the synth, one bank at a time. Tabs #raw("U1")–#raw("U4") are the
   User banks; #raw("F1")–#raw("F4") (in italics) are the read-only Factory banks. The small number on a tab is
   how many of its 99 slots have been read. Slots not read yet show “—”.
-- *File pane (right):* the patches in an opened `.syx` file.
+- *File pane (right):* a list of patches, usually an opened `.syx` file. You can also build and edit lists
+  here without a synth; see @file-lists.
 - *Status bar:* what just happened, or the progress of a running operation.
 
 Every button has a tooltip. If a button is greyed out, its tooltip says why.
@@ -347,6 +348,52 @@ until you click #ui[Write].
   + Leave #ui[Original locations] selected and check that the #ui[Replaces] column shows what you expect.
   + Click #ui[Write]. The status bar confirms that the patch was written and verified.
 ]
+
+= Editing patch lists <file-lists>
+
+The File pane is also an editor for `.syx` files. It works without a synth, and nothing in it touches the synth
+until you write patches there.
+
+- #ui[File → New list] (#key("Ctrl", "N")) starts an empty list.
+- *Add patches* by dragging them from the Prophet 12 pane into the File pane, or right-click → #ui[Add to the
+  File list]. Drop them onto a patch to insert them before it, or below the last patch to add them at the end.
+  #ui[File → Add .syx file to the list…] adds a whole file's patches at the end.
+- *Reorder* by dragging patches within the File pane. Hold #key("Ctrl") to copy them instead.
+- *Remove* the selected patches with #key("Delete"), or right-click → #ui[Remove from list].
+- *Renumber…* (right-click) gives the list, or the selected patches, consecutive User slots in list order,
+  continuing into the next bank, for example to plan a bank before writing it with #ui[Original locations].
+- #ui[Rename…] renames patches in the list.
+- #ui[Save] (#key("Ctrl", "S")) saves the list to its file, in the order shown; #ui[File → Save list as…]
+  (#key("Ctrl", "Shift", "S")) saves it under a new name. A restore point is never overwritten: saving one asks
+  for a new name.
+
+A `*` after the file name means the list has changes that aren't saved. Opening another file, starting a new
+list or closing the app then asks first. While a search is active, patches can't be dropped into the list.
+
+== Comparing the synth with a file <compare>
+
+Click #ui[Compare] above the File pane to add a Compare column to both panes. Patches are matched by *sound*,
+so a copy that was only renamed still counts as the same. Each patch shows one of:
+
+- *same*: the same sound in the same slot (also when only the name differs, which is shown);
+- *differs*: a different sound in that slot, and where the file's sound is, if anywhere;
+- *elsewhere*: the sound is there, but in another slot;
+- *not on the synth* / *not in the file*: the sound isn't on the other side at all;
+- *slot not read*: that slot hasn't been read from the synth yet.
+
+The File pane's toolbar sums it up, e.g. “92 same · 5 differ · 2 not on the synth”. Read all banks first for a
+full comparison; until then, missing patches show as “not in the banks read”.
+
+#example[what changed since the last backup?][
+  + #ui[Read all User banks].
+  + #ui[Open .syx…] and choose the backup.
+  + Click #ui[Compare] and search `is:differs` in either pane.
+]
+
+== Duplicates <duplicates>
+
+A #raw("×2") (or #raw("×3"), …) after a name means the same sound is in that pane more than once. Its tooltip
+says where. Search `is:dup` to list them all.
 
 == Rearranging patches on the synth <rearrange>
 
@@ -476,6 +523,8 @@ Type in the search box above either list, or press #key("Ctrl", "F") to jump to 
   #ui[Read all User banks] first to search everything.
 - `#pad` finds patches tagged Pad (see the next section). Tags and words can be combined: `#pad warm`.
 - The #ui[★] button next to the search box shows only favourites; it works together with the search.
+- `is:dup` shows patches that are in the pane more than once (@duplicates). `is:same`, `is:differs` and
+  `is:missing` filter by how the synth and the File pane compare (@compare).
 - Matching letters are highlighted.
 
 #note[
@@ -588,7 +637,10 @@ Zoom (80–250%), font and theme are remembered.
   inset: 6pt,
   stroke: 0.5pt + muted.lighten(50%),
   table.header([*Keys*], [*Action*]),
+  [#key("Ctrl", "N")], [New, empty list in the File pane],
   [#key("Ctrl", "O")], [Open a `.syx` file],
+  [#key("Ctrl", "S")], [Save the File pane's list],
+  [#key("Ctrl", "Shift", "S")], [Save the list under a new name],
   [#key("Ctrl", "B")], [Back up all User banks],
   [#key("Ctrl", "F")], [Search in the pane used last],
   [#key("F2")], [Rename the selected patches],
@@ -603,7 +655,8 @@ Zoom (80–250%), font and theme are remembered.
   [#key("Ctrl", "Page Up") #key("Ctrl", "Page Down")], [Previous or next bank],
   [#key("Ctrl", "A")], [Select all patches in the pane],
   [#key("Enter")], [File pane: write the selected patches to the synth (asks first)],
-  [#key("Delete")], [Prophet 12 pane: initialize the selected slots (asks first)],
+  [#key("Delete")], [Prophet 12 pane: initialize the selected slots (asks first). File pane: remove them from
+    the list],
   [#key("↓") in a search box], [Jump to the first result],
   [#key("Ctrl", "Z")], [Undo the last change on the synth],
   [#key("Ctrl", ",")], [Preferences (audition note)],

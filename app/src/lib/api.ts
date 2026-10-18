@@ -110,6 +110,12 @@ export const api = {
   readPrograms: (selection: string) =>
     invoke<{ patches: Patch[]; complete: boolean }>('read_programs', { selection }),
   cancel: () => invoke<void>('cancel'),
+  addSyx: (path: string) => invoke<{ patches: Patch[]; skipped: number }>('add_syx', { path }),
+  closeFile: () => invoke<void>('close_file'),
+  copyToFile: (ids: number[]) => invoke<Patch[]>('copy_to_file', { ids }),
+  removeFromFile: (ids: number[]) => invoke<void>('remove_from_file', { ids }),
+  setFileLocations: (changes: { id: number; location: string }[]) =>
+    invoke<Patch[]>('set_file_locations', { changes }),
   openSyx: (path: string) => invoke<{ patches: Patch[]; skipped: number }>('open_syx', { path }),
   saveSyx: (ids: number[], path: string) => invoke<void>('save_syx', { ids, path }),
   saveSyxSplit: (ids: number[], dir: string) => invoke<void>('save_syx_split', { ids, dir }),
@@ -184,12 +190,26 @@ export function errorText(e: unknown): string {
   return typeof e === 'string' ? e : e instanceof Error ? e.message : JSON.stringify(e);
 }
 
-/** Lowercase search words from a query, leaving out `#tag` words; empty when there are none. */
+/** Lowercase search words from a query, leaving out `#tag` and `is:` words; empty when there are none. */
 export function searchTerms(query: string): string[] {
   return query
     .toLowerCase()
     .split(/\s+/)
-    .filter((w) => w && !w.startsWith('#'));
+    .filter((w) => w && !w.startsWith('#') && !w.startsWith('is:'));
+}
+
+/** What a list can be narrowed to with `is:` words in a search. */
+export type SearchFilter = 'dup' | 'same' | 'differs' | 'missing';
+const FILTERS: SearchFilter[] = ['dup', 'same', 'differs', 'missing'];
+
+/** The `is:dup`, `is:same`, `is:differs` and `is:missing` words in a query. */
+export function searchFilters(query: string): SearchFilter[] {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.startsWith('is:'))
+    .map((w) => w.slice(3) as SearchFilter)
+    .filter((f) => FILTERS.includes(f));
 }
 
 /** Lowercase tags searched for with `#tag` in a query, without the `#`. */

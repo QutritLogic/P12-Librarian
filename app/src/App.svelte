@@ -3,7 +3,8 @@
   import { SvelteMap } from 'svelte/reactivity';
   import { getVersion } from '@tauri-apps/api/app';
   import { listen } from '@tauri-apps/api/event';
-  import { open, save } from '@tauri-apps/plugin-dialog';
+  import { getCurrentWindow } from '@tauri-apps/api/window';
+  import { ask, open, save } from '@tauri-apps/plugin-dialog';
   import AboutDialog from './lib/AboutDialog.svelte';
   import AppearanceDialog from './lib/AppearanceDialog.svelte';
   import PreferencesDialog from './lib/PreferencesDialog.svelte';
@@ -16,11 +17,13 @@
   import LayerBDialog from './lib/LayerBDialog.svelte';
   import PatchTable, { type DropInfo, type DropZone, type Move, type Row } from './lib/PatchTable.svelte';
   import RenameDialog from './lib/RenameDialog.svelte';
+  import RenumberDialog from './lib/RenumberDialog.svelte';
   import SearchBox from './lib/SearchBox.svelte';
   import TagsDialog from './lib/TagsDialog.svelte';
   import WriteDialog from './lib/WriteDialog.svelte';
   import {
     FACTORY_BANKS,
+    PROGRAMS_PER_BANK,
     USER_BANKS,
     api,
     bankSlots,
@@ -30,8 +33,10 @@
     matchesTags,
     noteName,
     onProgress,
+    searchFilters,
     searchTags,
     searchTerms,
+    type SearchFilter,
     type Patch,
     type Ports,
     type Progress,
@@ -93,6 +98,11 @@
   let swapping = $state<[string, string][] | null>(null);
   /** Patches whose tags are being edited. */
   let tagging = $state<Patch[] | null>(null);
+  let renumbering = $state<{ patches: Patch[]; selectionOnly: boolean } | null>(null);
+  /** The File pane's list has changes that aren't saved to its file yet. */
+  let fileDirty = $state(false);
+  /** Show the Compare column in both panes. */
+  let comparing = $state(false);
   let contextMenu = $state<{ x: number; y: number; items: (MenuItem | null)[] } | null>(null);
 
   type Pane = 'synth' | 'file';
@@ -120,8 +130,104 @@
   /** Show only favourites (the ★ button by each search box). */
   let synthFavOnly = $state(false);
   let fileFavOnly = $state(false);
-  const synthSearching = $derived(synthTerms.length > 0 || synthTagTerms.length > 0 || synthFavOnly);
-  const fileFiltering = $derived(fileTerms.length > 0 || fileTagTerms.length > 0 || fileFavOnly);
+  const synthFilters = $derived(searchFilters(synthSearch));
+  const fileFilters = $derived(searchFilters(fileSearch));
+  const synthSearching = $derived(
+    synthTerms.length > 0 || synthTagTerms.length > 0 || synthFilters.length > 0 || synthFavOnly,
+  );
+  const fileFiltering = $derived(
+    fileTerms.length > 0 || fileTagTerms.length > 0 || fileFilters.length > 0 || fileFavOnly,
+  );
+
+  // Compare and duplicates. Patches are matched by sound (fingerprint), which
+  // leaves out the Layer A name, so a renamed copy still counts as the same sound.
+  const synthByFingerprint = $derived.by(() => {
+    const found = new Map<string, string[]>();
+    for (const [location, p] of synthPatches) found.set(p.fingerprint, [...(found.get(p.fingerprint) ?? []), location]);
+    for (const list of found.values()) list.sort();
+    return found;
+  });
+  /** A file patch's label: its slot, or "edit n" for an edit buffer dump. */
+  const fileLabel = (p: Patch, index: number) => p.location ?? `edit ${index + 1}`;
+  const fileByFingerprint = $derived.by(() => {
+    const found = new Map<string, { id: number; label: string }[]>();
+    filePatches.forEach((p, i) =>
+      found.set(p.fingerprint, [...(found.get(p.fingerprint) ?? []), { id: p.id, label: fileLabel(p, i) }]),
+    );
+    return found;
+  });
+  const fileBySlot = $derived.by(() => {
+    const found = new Map<string, Patch>();
+    for (const p of filePatches) if (p.location && !found.has(p.location)) found.set(p.location, p);
+    return found;
+  });
+  const allBanksRead = $derived(synthPatches.size === ALL_BANKS.length * PROGRAMS_PER_BANK);
+
+  /** "U1:05, U2:07" for a few places, or the first few and how many more. */
+  function places(list: string[]): string {
+    return list.length <= 3 ? list.join(', ') : `${list.slice(0, 3).join(', ')} and ${list.length - 3} more`;
+  }
+
+  /** How a synth slot compares with the File pane's list. */
+  function synthCompare(location: string): Row['compare'] {
+    const p = synthPatches.get(location);
+    if (!p || filePatches.length === 0) return null;
+    const inFile = (fileByFingerprint.get(p.fingerprint) ?? []).map((f) => f.label);
+    const there = fileBySlot.get(location);
+    if (there?.fingerprint === p.fingerprint) {
+      return there.name === p.name
+        ? { text: 'same', kind: 'same' }
+        : { text: `same sound, named “${there.name}” in the file`, kind: 'renamed' };
+    }
+    if (there) {
+      return { text: inFile.length ? `differs; in the file at ${places(inFile)}` : 'differs from the file', kind: 'differs' };
+    }
+    return inFile.length
+      ? { text: `in the file at ${places(inFile)}`, kind: 'elsewhere' }
+      : { text: 'not in the file', kind: 'missing' };
+  }
+
+  /** How a patch in the File pane compares with what has been read from the synth. */
+  function fileCompare(p: Patch): Row['compare'] {
+    const slot = p.location;
+    const at = slot ? synthPatches.get(slot) : undefined;
+    const elsewhere = (synthByFingerprint.get(p.fingerprint) ?? []).filter((l) => l !== slot);
+    if (at?.fingerprint === p.fingerprint) {
+      return at.name === p.name
+        ? { text: 'same', kind: 'same' }
+        : { text: `same sound, named “${at.name}” on the synth`, kind: 'renamed' };
+    }
+    if (at) {
+      return {
+        text: elsewhere.length ? `differs; on the synth at ${places(elsewhere)}` : 'differs from the synth',
+        kind: 'differs',
+      };
+    }
+    if (elsewhere.length) return { text: `on the synth at ${places(elsewhere)}`, kind: 'elsewhere' };
+    if (slot && synthPatches.size > 0) return { text: 'slot not read', kind: 'unknown' };
+    return allBanksRead
+      ? { text: 'not on the synth', kind: 'missing' }
+      : { text: 'not in the banks read', kind: 'missing' };
+  }
+
+  function synthDuplicates(location: string, p: Patch): string[] {
+    return (synthByFingerprint.get(p.fingerprint) ?? []).filter((l) => l !== location);
+  }
+
+  function fileDuplicates(p: Patch): string[] {
+    return (fileByFingerprint.get(p.fingerprint) ?? []).filter((f) => f.id !== p.id).map((f) => f.label);
+  }
+
+  /** The is:dup, is:same, is:differs and is:missing search words. */
+  function passesFilters(filters: SearchFilter[], duplicates: string[], compare: Row['compare']): boolean {
+    return filters.every((f) =>
+      f === 'dup'
+        ? duplicates.length > 0
+        : f === 'same'
+          ? compare?.kind === 'same' || compare?.kind === 'renamed'
+          : compare?.kind === f,
+    );
+  }
 
   /** True if a patch passes a pane's search: name words, #tags and the ★ filter. */
   function passes(p: Patch, location: string, terms: string[], tagTerms: string[], favOnly: boolean): boolean {
@@ -138,12 +244,18 @@
       id: patch?.id ?? null,
       tags: tagsOf(patch),
       favourite: isFavourite(patch),
+      compare: comparing ? synthCompare(location) : null,
+      duplicates: patch ? synthDuplicates(location, patch) : [],
     };
   }
 
   function synthMatches(location: string): boolean {
     const patch = synthPatches.get(location);
-    return patch !== undefined && passes(patch, location, synthTerms, synthTagTerms, synthFavOnly);
+    return (
+      patch !== undefined &&
+      passes(patch, location, synthTerms, synthTagTerms, synthFavOnly) &&
+      passesFilters(synthFilters, synthDuplicates(location, patch), synthCompare(location))
+    );
   }
 
   /** The open bank, or while searching, the matching patches from every bank that has been read. */
@@ -155,9 +267,12 @@
 
   const fileRows: Row[] = $derived(
     filePatches
-      .map((p, i) => ({ p, location: p.location ?? `edit ${i + 1}` }))
-      .filter(({ p, location }) => passes(p, location, fileTerms, fileTagTerms, fileFavOnly))
-      .map(({ p, location }) => ({
+      .map((p, i) => ({ p, location: fileLabel(p, i), duplicates: fileDuplicates(p), compare: fileCompare(p) }))
+      .filter(
+        ({ p, location, duplicates, compare }) =>
+          passes(p, location, fileTerms, fileTagTerms, fileFavOnly) && passesFilters(fileFilters, duplicates, compare),
+      )
+      .map(({ p, location, duplicates, compare }) => ({
         key: String(p.id),
         location,
         name: p.name,
@@ -165,6 +280,8 @@
         id: p.id,
         tags: tagsOf(p),
         favourite: isFavourite(p),
+        compare: comparing ? compare : null,
+        duplicates,
       })),
   );
 
@@ -181,7 +298,21 @@
   const selectedFile = $derived(
     filePatches.filter((p) => fileSelected.includes(String(p.id)) && visibleFile.has(String(p.id))),
   );
-  const fileName = $derived(filePath?.split('/').pop() ?? null);
+  const fileName = $derived(filePath?.split(/[\\/]/).pop() ?? null);
+
+  /** "40 same · 3 differ · 11 not on the synth", for the File pane when comparing. */
+  const compareSummary = $derived.by(() => {
+    const kinds = filePatches.map((p) => fileCompare(p)?.kind);
+    const n = (k: string) => kinds.filter((x) => x === k).length;
+    const parts = [
+      [n('same') + n('renamed'), 'same'],
+      [n('differs'), 'differ'],
+      [n('elsewhere'), 'elsewhere on the synth'],
+      [n('missing'), allBanksRead ? 'not on the synth' : 'not in the banks read'],
+      [n('unknown'), 'slot not read'],
+    ] as const;
+    return parts.filter(([count]) => count > 0).map(([count, what]) => `${count} ${what}`).join(' · ');
+  });
 
   function readCount(bankName: string): number {
     return bankSlots(bankName).filter((s) => synthPatches.has(s)).length;
@@ -432,9 +563,141 @@
     });
   }
 
+  /** Asks before throwing away unsaved changes to the File pane's list. */
+  async function discardChanges(): Promise<boolean> {
+    if (!fileDirty) return true;
+    return ask('The list in the File pane has changes that aren\'t saved. Discard them?', {
+      title: 'Unsaved changes',
+      kind: 'warning',
+      okLabel: 'Discard',
+      cancelLabel: 'Keep them',
+    });
+  }
+
+  async function newList() {
+    if (!(await discardChanges())) return;
+    await api.closeFile();
+    filePatches = [];
+    filePath = null;
+    fileSelected = [];
+    fileDirty = false;
+    info('New, empty list. Drag patches here from the Prophet 12 pane, or add a .syx file.');
+  }
+
   async function openFile() {
+    if (!(await discardChanges())) return;
     const path = await open({ filters: syxFilter, multiple: false });
     if (path) await openPath(path);
+  }
+
+  /** Adds a .syx file's patches to the end of the list. */
+  async function addFile() {
+    const path = await open({ filters: syxFilter, multiple: false });
+    if (!path) return;
+    await run('Adding', async () => {
+      const result = await api.addSyx(path);
+      filePatches = [...filePatches, ...result.patches];
+      fileDirty = true;
+      const name = path.split(/[\\/]/).pop();
+      info(`Added ${result.patches.length} patches from ${name} to the list. Not saved yet.`);
+    });
+  }
+
+  /** Automatic backups (restore points) are never overwritten by Save. */
+  function isRestorePoint(path: string): boolean {
+    return /[\\/]before-[^\\/]*\.syx$/.test(path);
+  }
+
+  async function saveList() {
+    if (filePatches.length === 0) return info('The list is empty; there is nothing to save.');
+    if (!filePath || isRestorePoint(filePath)) return saveListAs();
+    const path = filePath;
+    await run('Saving', async () => {
+      await api.saveSyx(filePatches.map((p) => p.id), path);
+      fileDirty = false;
+      info(`Saved ${filePatches.length} patches to ${path}`);
+    });
+  }
+
+  async function saveListAs() {
+    if (filePatches.length === 0) return info('The list is empty; there is nothing to save.');
+    const suggested = filePath && !isRestorePoint(filePath) ? filePath : `${backupDir}/p12-list-${timestamp()}.syx`;
+    const path = await save({ defaultPath: suggested, filters: syxFilter });
+    if (!path) return;
+    await run('Saving', async () => {
+      await api.saveSyx(filePatches.map((p) => p.id), path);
+      filePath = path;
+      fileDirty = false;
+      info(`Saved ${filePatches.length} patches to ${path}`);
+    });
+  }
+
+  async function removeFromList(patches: Patch[]) {
+    if (patches.length === 0) return;
+    const ids = patches.map((p) => p.id);
+    await api.removeFromFile(ids);
+    filePatches = filePatches.filter((p) => !ids.includes(p.id));
+    fileSelected = [];
+    fileDirty = true;
+    const count = `${ids.length} ${ids.length === 1 ? 'patch' : 'patches'}`;
+    info(`Removed ${count} from the list. The file on disk changes only when you save.`);
+  }
+
+  /** Index in the list to insert before: the patch with id `before`, or the end. */
+  function insertIndex(before: number | null): number {
+    const i = before === null ? -1 : filePatches.findIndex((p) => p.id === before);
+    return i === -1 ? filePatches.length : i;
+  }
+
+  /** Copies patches (from the synth, or from the list itself) into the list. */
+  async function addToList(ids: number[], before: number | null) {
+    await run('Adding', async () => {
+      const added = await api.copyToFile(ids);
+      const at = insertIndex(before);
+      filePatches = [...filePatches.slice(0, at), ...added, ...filePatches.slice(at)];
+      fileSelected = added.map((p) => String(p.id));
+      fileDirty = true;
+      const count = `${added.length} ${added.length === 1 ? 'patch' : 'patches'}`;
+      info(`Added ${count} to the list. Not saved yet.`);
+    });
+  }
+
+  /** Moves patches within the list, keeping their order, before the patch with id `before`. */
+  function moveInList(ids: number[], before: number | null) {
+    if (before !== null && ids.includes(before)) return; // dropped onto itself
+    const moving = filePatches.filter((p) => ids.includes(p.id));
+    const rest = filePatches.filter((p) => !ids.includes(p.id));
+    const i = before === null ? -1 : rest.findIndex((p) => p.id === before);
+    const at = i === -1 ? rest.length : i;
+    filePatches = [...rest.slice(0, at), ...moving, ...rest.slice(at)];
+    fileDirty = true;
+  }
+
+  function dropOnFile(row: Row, ids: number[], _zone: DropZone, how: DropInfo) {
+    if (how.sameTable && !how.copy) moveInList(ids, row.id);
+    else addToList(ids, row.id);
+  }
+
+  function dropAtFileEnd(ids: number[], how: DropInfo) {
+    if (fileFiltering) return;
+    if (how.sameTable && !how.copy) moveInList(ids, null);
+    else addToList(ids, null);
+  }
+
+  function startRenumber() {
+    const selectionOnly = selectedFile.length > 1;
+    const patches = selectionOnly ? filePatches.filter((p) => selectedFile.includes(p)) : filePatches;
+    if (patches.length > 0) renumbering = { patches, selectionOnly };
+  }
+
+  async function confirmRenumber(changes: { id: number; location: string }[]) {
+    renumbering = null;
+    await run('Renumbering', async () => {
+      const updated = new Map((await api.setFileLocations(changes)).map((p) => [p.id, p]));
+      filePatches = filePatches.map((p) => updated.get(p.id) ?? p);
+      fileDirty = true;
+      info(`Renumbered ${changes.length} patches, ${changes[0].location} onwards. Not saved yet.`);
+    });
   }
 
   async function openPath(path: string) {
@@ -443,6 +706,7 @@
       filePath = path;
       filePatches = result.patches;
       fileSelected = [];
+      fileDirty = false;
       const skipped = result.skipped ? ` (${result.skipped} other SysEx messages skipped)` : '';
       info(`Opened ${result.patches.length} patches${skipped}.`);
     });
@@ -596,10 +860,11 @@
       } else {
         const renamed = new Map(report.patches.map((p) => [p.id, p]));
         filePatches = filePatches.map((p) => renamed.get(p.id) ?? p);
+        fileDirty = true;
       }
       const count = `${report.patches.length} ${report.patches.length === 1 ? 'patch' : 'patches'}`;
       if (report.backupPath) changed(`Renamed and verified ${count} on the synth.`, report.backupPath);
-      else info(`Renamed ${count} in this list. Use Save selected… to keep the new names.`);
+      else info(`Renamed ${count} in the list. Save it (Ctrl+S) to keep the new names.`);
     });
   }
 
@@ -666,7 +931,21 @@
                 title: initBlocked() ?? 'Replace with the Basic Patch, named “Init Patch”',
               },
             ]
-          : []),
+          : [
+              {
+                label: 'Renumber…',
+                action: startRenumber,
+                disabled: filePatches.length === 0,
+                title: 'Give the list (or the selected patches) consecutive User slots, e.g. to plan a bank',
+              },
+              {
+                label: one ? 'Remove from list' : `Remove ${patches.length} from list`,
+                shortcut: 'Del',
+                action: () => removeFromList(patches),
+                disabled: patches.length === 0,
+                title: 'Take them out of this list; the file on disk changes only when you save',
+              },
+            ]),
         null,
         {
           label: patches.length > 0 && patches.every(isFavourite) ? 'Remove from favourites' : 'Add to favourites',
@@ -683,6 +962,16 @@
         },
         null,
         { label: 'Save selected…', action: () => saveSelected(patches) },
+        ...(pane === 'synth'
+          ? [
+              {
+                label: 'Add to the File list',
+                action: () => addToList(patches.map((p) => p.id), null),
+                disabled: patches.length === 0,
+                title: 'Copy them into the list in the File pane, to save or compare later',
+              },
+            ]
+          : []),
         pane === 'synth'
           ? { label: 'Save as separate files…', action: () => saveSeparately(patches) }
           : {
@@ -733,7 +1022,7 @@
 
   function keydown(event: KeyboardEvent) {
     if (zoomKey(event)) return;
-    if (mustAccept || renaming || writing || initializing || layerCopy || swapping || tagging || dialog || contextMenu)
+    if (mustAccept || renaming || renumbering || writing || initializing || layerCopy || swapping || tagging || dialog || contextMenu)
       return;
     if (event.ctrlKey && event.key.toLowerCase() === 'f') {
       event.preventDefault();
@@ -793,6 +1082,8 @@
       if (!busy) reRead(selectedSynth);
     } else if (key.toLowerCase() === 't' && !event.ctrlKey && !event.altKey) {
       if (selected.length > 0) tagging = selected;
+    } else if (key === 'Delete' && activePane === 'file') {
+      removeFromList(selectedFile);
     } else if (key === 'Delete' && activePane === 'synth') {
       if (selectedSynth.length > 0 && initBlocked() === null) initializing = selectedSynth.map((p) => p.location!);
     } else {
@@ -827,6 +1118,10 @@
     else if (id === 'restore_points') dialog = 'restore';
     else if (busy || writing || renaming || initializing || layerCopy) return;
     else if (id === 'open') openFile();
+    else if (id === 'new_list') newList();
+    else if (id === 'add_file') addFile();
+    else if (id === 'save') saveList();
+    else if (id === 'save_as') saveListAs();
     else if (id === 'backup') {
       if (connected) backUpAll();
       else message = { text: 'Connect to the Prophet 12 before backing up.', error: true };
@@ -864,6 +1159,10 @@
       applySettings(settings);
     });
     api.backupDir().then((dir) => (backupDir = dir));
+    // Closing the window, or File → Quit: ask first if the list has unsaved changes.
+    const unlistenClose = getCurrentWindow().onCloseRequested(async (event) => {
+      if (!(await discardChanges())) event.preventDefault();
+    });
     api.disclaimerAccepted().then((accepted) => {
       if (accepted) start();
       else mustAccept = true;
@@ -873,6 +1172,7 @@
       unlistenMenu.then((f) => f());
       unlistenSettings.then((f) => f());
       unlistenErrors.then((f) => f());
+      unlistenClose.then((f) => f());
       window.removeEventListener('wheel', wheel);
     };
   });
@@ -971,6 +1271,7 @@
       onDrop={dropOnSynth}
       canDropOn={canDropOnSynth}
       rearranges={(sameTable) => sameTable}
+      showCompare={comparing}
       highlight={synthTerms}
       highlightTags={synthTagTerms}
       onToggleFavourite={(row) => toggleFavourite([synthPatches.get(row.location)!])}
@@ -1012,13 +1313,36 @@
 
   <section>
     <div class="section-head">
-      <h2>File {#if fileName}<span class="muted">— {fileName}</span>{/if}</h2>
+      <h2>
+        File {#if fileName}<span class="muted">— {fileName}{fileDirty ? ' *' : ''}</span>{:else if fileDirty}<span
+            class="muted">— new list *</span
+          >{/if}
+      </h2>
       <div class="actions">
         <button onclick={openFile} disabled={!!busy} title="Open a .syx file to see, audition and write its patches (Ctrl+O)">Open .syx…</button>
+        <button
+          onclick={saveList}
+          disabled={!!busy || filePatches.length === 0}
+          title={fileDirty ? 'Save the list, with your changes (Ctrl+S). File menu: Save list as…' : 'Save the list (Ctrl+S). File menu: Save list as…'}
+          >Save</button
+        >
       </div>
     </div>
     <div class="toolbar">
-      <span class="muted">{filePatches.length ? `${filePatches.length} patches` : ''}</span>
+      <span class="muted">
+        <button
+          class="compare"
+          class:on={comparing}
+          aria-pressed={comparing}
+          disabled={filePatches.length === 0 || synthPatches.size === 0}
+          onclick={() => (comparing = !comparing)}
+          title="Show how the synth and this list differ, matched by sound (also finds renamed copies). Search is:same, is:differs, is:missing or is:dup to filter."
+          >Compare</button
+        >
+        {#if comparing && filePatches.length && synthPatches.size}{compareSummary}{:else}{filePatches.length
+            ? `${filePatches.length} patches`
+            : ''}{/if}
+      </span>
       <div class="find">
         <button
           class="fav-filter"
@@ -1040,6 +1364,11 @@
       rows={fileRows}
       bind:selected={fileSelected}
       draggable
+      onDrop={dropOnFile}
+      canDropOn={(_row, zone) => zone === 'row' && !fileFiltering}
+      rearranges={(sameTable) => sameTable}
+      onDropEnd={dropAtFileEnd}
+      showCompare={comparing && synthPatches.size > 0}
       onActivate={(row) => audition(filePatches.find((p) => p.id === row.id))}
       onContextMenu={(e) => openContextMenu('file', e)}
       onFocus={() => (activePane = 'file')}
@@ -1049,7 +1378,7 @@
       onTagClick={(tag) => showTag('file', tag)}
       emptyText={filePatches.length
         ? noMatch(fileSearch, fileFavOnly)
-        : 'Open a .syx file to see its patches. Drag them onto a slot on the left to write them.'}
+        : 'Open a .syx file, or drag patches here from the Prophet 12 pane to start a new list.'}
     />
     <div class="actions footer">
       <span class="muted">
@@ -1171,6 +1500,10 @@
   />
 {/if}
 
+{#if renumbering}
+  <RenumberDialog {...renumbering} onConfirm={confirmRenumber} onCancel={() => (renumbering = null)} />
+{/if}
+
 {#if contextMenu}
   <ContextMenu {...contextMenu} onClose={() => (contextMenu = null)} />
 {/if}
@@ -1186,7 +1519,11 @@
     {connected}
     currentName={(location) => synthPatches.get(location)?.name}
     onRestore={(point: RestorePoint) => restoreFrom(point.path, `Restore point of ${point.time}`)}
-    onOpen={(point: RestorePoint) => ((dialog = null), openPath(point.path))}
+    onOpen={async (point: RestorePoint) => {
+      if (!(await discardChanges())) return;
+      dialog = null;
+      openPath(point.path);
+    }}
     onClose={() => (dialog = null)}
   />
 {:else if dialog === 'preferences'}
@@ -1263,6 +1600,15 @@
   }
   .footer .muted {
     margin-right: auto;
+  }
+  .compare {
+    padding: 2px 8px;
+    margin-right: 6px;
+  }
+  .compare.on {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
   }
   .toolbar {
     display: flex;

@@ -20,7 +20,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     };
 
     let file = SubmenuBuilder::new(app, "File")
+        .item(&item("new_list", "New list", Some("CmdOrCtrl+N"))?)
         .item(&item("open", "Open .syx file…", Some("CmdOrCtrl+O"))?)
+        .item(&item("add_file", "Add .syx file to the list…", None)?)
+        .item(&item("save", "Save list", Some("CmdOrCtrl+S"))?)
+        .item(&item("save_as", "Save list as…", Some("CmdOrCtrl+Shift+S"))?)
+        .separator()
         .item(&item(
             "backup",
             "Back up all User banks…",
@@ -111,7 +116,13 @@ fn open_user_guide(app: &AppHandle) -> Result<(), String> {
 
 pub fn handle(app: &AppHandle, event: MenuEvent) {
     match event.id().as_ref() {
-        "quit" => app.exit(0),
+        // Closing the window lets the frontend ask about an unsaved list first.
+        "quit" => match app.get_webview_window("main") {
+            Some(window) => {
+                let _ = window.close();
+            }
+            None => app.exit(0),
+        },
         "help" => {
             if let Err(message) = open_user_guide(app) {
                 let _ = app.emit("app-error", message);

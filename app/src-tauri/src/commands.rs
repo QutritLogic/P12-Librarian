@@ -354,32 +354,121 @@ pub struct OpenedFile {
     skipped: usize,
 }
 
-/// Loads a .syx file, replacing the previously opened one.
-#[tauri::command]
-pub fn open_syx(state: tauri::State<'_, AppState>, path: PathBuf) -> CmdResult<OpenedFile> {
-    let bytes = fs::read(&path).map_err(|e| format!("Reading {}: {e}", path.display()))?;
-    let mut library = lock(&state.library);
-    library.patches.retain(|_, p| p.origin != Origin::File);
-    let mut patches = Vec::new();
+/// Programs read from a .syx file, with their slots (None for an edit buffer dump).
+type FilePrograms = Vec<(Option<Location>, Program)>;
+
+/// The Prophet 12 programs in a .syx file, and how many other messages it has.
+fn read_syx(path: &Path) -> CmdResult<(FilePrograms, usize)> {
+    let bytes = fs::read(path).map_err(|e| format!("Reading {}: {e}", path.display()))?;
+    let mut programs = Vec::new();
     let mut skipped = 0;
     for entry in syx::parse(&bytes) {
         match entry {
             Entry::Message(Message::ProgramDump { location, program }) => {
-                patches.push(library.insert(Origin::File, Some(location), program))
+                programs.push((Some(location), program))
             }
-            Entry::Message(Message::EditBufferDump(program)) => {
-                patches.push(library.insert(Origin::File, None, program))
-            }
+            Entry::Message(Message::EditBufferDump(program)) => programs.push((None, program)),
             _ => skipped += 1,
         }
     }
-    if patches.is_empty() {
+    if programs.is_empty() {
         return Err(format!(
             "No Prophet 12 programs found in {}",
             path.display()
         ));
     }
+    Ok((programs, skipped))
+}
+
+/// Loads a .syx file into the File pane, replacing the list there. The old
+/// list is only dropped once the new file has been read.
+#[tauri::command]
+pub fn open_syx(state: tauri::State<'_, AppState>, path: PathBuf) -> CmdResult<OpenedFile> {
+    let (programs, skipped) = read_syx(&path)?;
+    let mut library = lock(&state.library);
+    library.patches.retain(|_, p| p.origin != Origin::File);
+    let patches = programs
+        .into_iter()
+        .map(|(location, program)| library.insert(Origin::File, location, program))
+        .collect();
     Ok(OpenedFile { patches, skipped })
+}
+
+/// Adds the programs of a .syx file to the File pane's list.
+#[tauri::command]
+pub fn add_syx(state: tauri::State<'_, AppState>, path: PathBuf) -> CmdResult<OpenedFile> {
+    let (programs, skipped) = read_syx(&path)?;
+    let mut library = lock(&state.library);
+    let patches = programs
+        .into_iter()
+        .map(|(location, program)| library.insert(Origin::File, location, program))
+        .collect();
+    Ok(OpenedFile { patches, skipped })
+}
+
+/// Empties the File pane's list, for a new one.
+#[tauri::command]
+pub fn close_file(state: tauri::State<'_, AppState>) {
+    lock(&state.library)
+        .patches
+        .retain(|_, p| p.origin != Origin::File);
+}
+
+/// Copies patches (from the synth or the list) into the File pane's list,
+/// keeping their slots.
+#[tauri::command]
+pub fn copy_to_file(
+    state: tauri::State<'_, AppState>,
+    ids: Vec<u32>,
+) -> CmdResult<Vec<PatchSummary>> {
+    let mut library = lock(&state.library);
+    let sources = ids
+        .iter()
+        .map(|&id| library.get(id).map(|p| (p.location, p.program.clone())))
+        .collect::<CmdResult<Vec<_>>>()?;
+    Ok(sources
+        .into_iter()
+        .map(|(location, program)| library.insert(Origin::File, location, program))
+        .collect())
+}
+
+/// Removes patches from the File pane's list. Nothing on disk changes.
+#[tauri::command]
+pub fn remove_from_file(state: tauri::State<'_, AppState>, ids: Vec<u32>) {
+    lock(&state.library)
+        .patches
+        .retain(|id, p| !(p.origin == Origin::File && ids.contains(id)));
+}
+
+#[derive(Deserialize)]
+pub struct NewLocation {
+    id: u32,
+    location: String,
+}
+
+/// Gives patches in the File pane's list new slots (Renumber), e.g. to plan a
+/// bank. Only the list changes; save it to keep the new numbers.
+#[tauri::command]
+pub fn set_file_locations(
+    state: tauri::State<'_, AppState>,
+    changes: Vec<NewLocation>,
+) -> CmdResult<Vec<PatchSummary>> {
+    let mut library = lock(&state.library);
+    let parsed = changes
+        .iter()
+        .map(|c| Ok((c.id, c.location.parse::<Location>().str_err()?)))
+        .collect::<CmdResult<Vec<_>>>()?;
+    let mut updated = Vec::new();
+    for (id, location) in parsed {
+        let stored = library
+            .patches
+            .get_mut(&id)
+            .filter(|p| p.origin == Origin::File)
+            .ok_or_else(|| format!("Patch {id} is not in the File pane"))?;
+        stored.location = Some(location);
+        updated.push(PatchSummary::new(id, Some(location), &stored.program));
+    }
+    Ok(updated)
 }
 
 /// Saves patches into one .syx file.
