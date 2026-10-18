@@ -56,6 +56,8 @@ fn main() {
             settings::appearance_options,
             settings::set_appearance,
             settings::set_audition,
+            settings::set_split,
+            settings::recent_file,
             settings::disclaimer_accepted,
             settings::accept_disclaimer,
             settings::quit,

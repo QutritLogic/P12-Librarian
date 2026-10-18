@@ -8,7 +8,7 @@ use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager, Wry};
 use tauri_plugin_opener::OpenerExt;
 
-use crate::settings::{self, AppearanceItems, Font, Theme};
+use crate::settings::{self, AppearanceItems, Font, RecentMenu, SettingsState, Theme};
 
 pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let item = |id: &str, text: &str, shortcut: Option<&str>| {
@@ -19,9 +19,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         }
     };
 
+    // Filled in by settings::apply.
+    let recent = SubmenuBuilder::new(app, "Open recent").build()?;
     let file = SubmenuBuilder::new(app, "File")
         .item(&item("new_list", "New list", Some("CmdOrCtrl+N"))?)
         .item(&item("open", "Open .syx file…", Some("CmdOrCtrl+O"))?)
+        .item(&recent)
         .item(&item("add_file", "Add .syx file to the list…", None)?)
         .item(&item("save", "Save list", Some("CmdOrCtrl+S"))?)
         .item(&item("save_as", "Save list as…", Some("CmdOrCtrl+Shift+S"))?)
@@ -97,6 +100,8 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
         .item(&item("about", "About P12 Librarian", None)?)
         .build()?;
 
+    app.manage(RecentMenu(recent));
+
     MenuBuilder::new(app).items(&[&file, &view, &help]).build()
 }
 
@@ -126,6 +131,18 @@ pub fn handle(app: &AppHandle, event: MenuEvent) {
         "help" => {
             if let Err(message) = open_user_guide(app) {
                 let _ = app.emit("app-error", message);
+            }
+        }
+        "recent_clear" => settings::update(app, |s| s.recent_files.clear()),
+        id if id.starts_with("recent:") => {
+            let index = id["recent:".len()..].parse::<usize>().ok();
+            let path = index.and_then(|i| {
+                let state = app.state::<SettingsState>();
+                let settings = state.0.lock().unwrap_or_else(|p| p.into_inner());
+                settings.recent_files.get(i).cloned()
+            });
+            if let Some(path) = path {
+                let _ = app.emit("open-recent", path);
             }
         }
         "zoom_in" => settings::update(app, |s| s.zoom = settings::step_zoom(s.zoom, 1)),

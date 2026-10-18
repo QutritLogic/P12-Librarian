@@ -13,6 +13,23 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- Sortable columns: click a heading to sort by favourite, slot, name, Layer B or comparison; click again for the
+  other way round, a third time for the list's own order. Writing selected patches to consecutive slots, and
+  Save selected…, follow the order shown.
+- File → Open recent lists the last eight `.syx` files opened or saved in the File pane.
+- The panes can be resized by dragging the gap between them; double-click it for equal widths. The width is
+  remembered.
+- The header shows the synth's model and OS version, e.g. “Prophet 12 Keyboard · OS 1.4.2”. `p12 identify` also
+  shows the OS version this way.
+- Reconnecting: the app notices when the synth is unplugged or switched off, and connects again by itself when
+  it comes back (unless you clicked Disconnect).
+
+### Fixed
+
+- The In and Out labels in the header could wrap onto two lines at 110 % zoom and above.
+
 ## [0.9.0] - 2026-10-18
 
 ### Added

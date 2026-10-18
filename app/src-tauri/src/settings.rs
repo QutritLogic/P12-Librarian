@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
-use tauri::menu::CheckMenuItem;
+use tauri::menu::{CheckMenuItem, MenuItemBuilder, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
 /// Version of DISCLAIMER.md that users must accept before using the app.
@@ -15,6 +15,9 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 pub const DISCLAIMER_VERSION: u32 = 3;
 
 const ZOOM_STEPS: [f64; 9] = [0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5];
+
+/// How many files File → Open recent lists.
+const MAX_RECENT_FILES: usize = 8;
 
 /// UI font. The serialized names are also the frontend's `data-font` values.
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,6 +122,10 @@ pub struct Settings {
     pub audition: Audition,
     /// The disclaimer version the user accepted; 0 if none.
     pub disclaimer_accepted: u32,
+    /// The Prophet 12 pane's share of the window width, 0.25-0.75.
+    pub split: f64,
+    /// `.syx` files opened or saved in the File pane, newest first.
+    pub recent_files: Vec<String>,
 }
 
 impl Default for Settings {
@@ -129,6 +136,8 @@ impl Default for Settings {
             theme: Theme::System,
             audition: Audition::default(),
             disclaimer_accepted: 0,
+            split: 0.5,
+            recent_files: Vec::new(),
         }
     }
 }
@@ -138,6 +147,41 @@ impl Default for Settings {
 pub struct AppearanceItems {
     pub fonts: Vec<(Font, CheckMenuItem<Wry>)>,
     pub themes: Vec<(Theme, CheckMenuItem<Wry>)>,
+}
+
+/// File → Open recent, rebuilt whenever the list changes.
+pub struct RecentMenu(pub Submenu<Wry>);
+
+/// The menu label for a recent file: its name, then its folder.
+fn recent_label(path: &str) -> String {
+    let path = std::path::Path::new(path);
+    let name = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+    match path.parent() {
+        Some(dir) if !dir.as_os_str().is_empty() => format!("{name}    ({})", dir.display()),
+        _ => name.into_owned(),
+    }
+}
+
+fn rebuild_recent_menu(app: &AppHandle, menu: &Submenu<Wry>, files: &[String]) -> tauri::Result<()> {
+    while menu.remove_at(0)?.is_some() {}
+    if files.is_empty() {
+        let none = MenuItemBuilder::with_id("recent_none", "No recent files")
+            .enabled(false)
+            .build(app)?;
+        return menu.append(&none);
+    }
+    for (i, path) in files.iter().enumerate() {
+        menu.append(&MenuItemBuilder::with_id(format!("recent:{i}"), recent_label(path)).build(app)?)?;
+    }
+    menu.append(&PredefinedMenuItem::separator(app)?)?;
+    menu.append(&MenuItemBuilder::with_id("recent_clear", "Clear list").build(app)?)
+}
+
+/// Puts `path` first in the recent files.
+pub fn remember_file(settings: &mut Settings, path: &str) {
+    settings.recent_files.retain(|p| p != path);
+    settings.recent_files.insert(0, path.to_owned());
+    settings.recent_files.truncate(MAX_RECENT_FILES);
 }
 
 #[derive(Default)]
@@ -179,6 +223,9 @@ pub fn apply(app: &AppHandle, settings: &Settings) {
         for (theme, item) in &items.themes {
             let _ = item.set_checked(settings.theme == *theme);
         }
+    }
+    if let Some(recent) = app.try_state::<RecentMenu>() {
+        let _ = rebuild_recent_menu(app, &recent.0, &settings.recent_files);
     }
     save(app, settings);
     let _ = app.emit("settings", settings.clone());
@@ -277,6 +324,26 @@ pub fn quit(app: AppHandle) {
     app.exit(0);
 }
 
+/// Sets how much of the window width the Prophet 12 pane takes.
+#[tauri::command]
+pub fn set_split(app: AppHandle, split: f64) {
+    if split.is_finite() {
+        update(&app, |s| s.split = split.clamp(0.25, 0.75));
+    }
+}
+
+/// Adds a file to File → Open recent, or removes it (e.g. when it's gone).
+#[tauri::command]
+pub fn recent_file(app: AppHandle, path: String, remove: bool) {
+    update(&app, |s| {
+        if remove {
+            s.recent_files.retain(|p| *p != path);
+        } else {
+            remember_file(s, &path);
+        }
+    });
+}
+
 /// Zooms in (+1), out (-1) or back to actual size (0).
 #[tauri::command]
 pub fn zoom(app: AppHandle, direction: i32) {
@@ -295,5 +362,18 @@ mod tests {
         assert_eq!(step_zoom(0.8, -1), 0.8);
         assert_eq!(step_zoom(1.3, -1), 1.25); // off-step values snap to a step
         assert_eq!(step_zoom(1.75, 0), 1.0);
+    }
+
+    #[test]
+    fn recent_files_newest_first_without_repeats() {
+        let mut settings = Settings::default();
+        for i in 0..10 {
+            remember_file(&mut settings, &format!("/syx/{i}.syx"));
+        }
+        remember_file(&mut settings, "/syx/5.syx");
+        assert_eq!(settings.recent_files.len(), MAX_RECENT_FILES);
+        assert_eq!(settings.recent_files[0], "/syx/5.syx");
+        assert_eq!(settings.recent_files[1], "/syx/9.syx");
+        assert_eq!(settings.recent_files.iter().filter(|p| *p == "/syx/5.syx").count(), 1);
     }
 }

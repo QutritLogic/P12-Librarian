@@ -216,8 +216,8 @@ impl Synth {
         }
     }
 
-    /// Returns the raw OS version byte from the Device Inquiry reply.
-    pub fn identify(&mut self) -> Result<u8> {
+    /// Returns the OS version bytes from the Device Inquiry reply, e.g. `[1, 4, 2]`.
+    pub fn identify(&mut self) -> Result<Vec<u8>> {
         self.request(
             &Message::DeviceInquiry,
             "device inquiry reply",

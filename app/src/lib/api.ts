@@ -67,6 +67,9 @@ export interface Settings {
   font: FontId;
   theme: ThemeId;
   audition: AuditionSettings;
+  /** The Prophet 12 pane's share of the window width. */
+  split: number;
+  recent_files: string[];
 }
 
 /** Note name as the Prophet 12 shows it: C3 is middle C (MIDI note 60). */
@@ -103,7 +106,8 @@ export interface RenameRequest {
 
 export const api = {
   listPorts: () => invoke<Ports>('list_ports'),
-  connect: (input: number, output: number) => invoke<number>('connect', { input, output }),
+  /** Returns the synth's OS version, e.g. "1.4.2". */
+  connect: (input: number, output: number) => invoke<string>('connect', { input, output }),
   disconnect: () => invoke<void>('disconnect'),
   /** Whether Ctrl is held now, or null where drag events' ctrlKey can be trusted. */
   ctrlHeld: () => invoke<boolean | null>('ctrl_held'),
@@ -143,6 +147,8 @@ export const api = {
   appearanceOptions: () => invoke<AppearanceOptions>('appearance_options'),
   setAppearance: (change: { theme?: ThemeId; font?: FontId }) => invoke<void>('set_appearance', change),
   setAudition: (audition: AuditionSettings) => invoke<void>('set_audition', { audition }),
+  setSplit: (split: number) => invoke<void>('set_split', { split }),
+  recentFile: (path: string, remove = false) => invoke<void>('recent_file', { path, remove }),
   disclaimerAccepted: () => invoke<boolean>('disclaimer_accepted'),
   acceptDisclaimer: () => invoke<void>('accept_disclaimer'),
   quit: () => invoke<void>('quit'),

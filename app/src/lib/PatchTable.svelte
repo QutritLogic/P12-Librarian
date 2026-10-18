@@ -71,13 +71,18 @@
     showCompare?: boolean;
     /** Drops below the last row, or into an empty table; called with the dragged ids and how. */
     onDropEnd?: (ids: number[], info: DropInfo) => void;
+    /** Set by the table: the row keys in the order shown, which differs from `rows` when sorted. */
+    shownKeys?: string[];
   }
 
   /** Where the keyboard cursor moves: by rows, or to the first or last row. */
   export type Move = number | 'first' | 'last';
 
+  /** A column the list can be sorted by. */
+  type SortColumn = 'favourite' | 'location' | 'name' | 'layerB' | 'compare';
+
   let {
-    rows,
+    rows: givenRows,
     selected = $bindable([]),
     draggable = false,
     onDrop,
@@ -94,7 +99,73 @@
     active = false,
     showCompare = false,
     onDropEnd,
+    shownKeys = $bindable([]),
   }: Props = $props();
+
+  // Sorting changes only how the list is shown; clicking a heading cycles
+  // ascending, descending and back to the list's own order.
+  let sort = $state<{ column: SortColumn; descending: boolean } | null>(null);
+  const COMPARE_ORDER: (CompareKind | '')[] = ['differs', 'missing', 'elsewhere', 'renamed', 'same', 'unknown', ''];
+  /** "U1:05" sorts by bank (User banks first, as in the tabs) and number; "edit 3" after the slots. */
+  function slotKey(location: string): string {
+    const m = /^([UF])(\d):(\d+)$/.exec(location);
+    return m ? `${m[1] === 'U' ? 0 : 1}${m[2]}${m[3].padStart(3, '0')}` : `9${location.padStart(12, '0')}`;
+  }
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  function compareRows(a: Row, b: Row, column: SortColumn): number {
+    switch (column) {
+      case 'favourite':
+        return Number(b.favourite) - Number(a.favourite);
+      case 'location':
+        return slotKey(a.location) < slotKey(b.location) ? -1 : slotKey(a.location) > slotKey(b.location) ? 1 : 0;
+      case 'name':
+        return collator.compare(a.name, b.name);
+      case 'layerB':
+        return collator.compare(a.layerB, b.layerB);
+      case 'compare':
+        return COMPARE_ORDER.indexOf(a.compare?.kind ?? '') - COMPARE_ORDER.indexOf(b.compare?.kind ?? '');
+    }
+  }
+  const rows = $derived.by(() => {
+    if (!sort) return givenRows;
+    const { column, descending } = sort;
+    const indexed = givenRows.map((row, index) => ({ row, index }));
+    // Slots not read stay at the end; ties keep the list's own order.
+    indexed.sort(
+      (a, b) =>
+        Number(a.row.id === null) - Number(b.row.id === null) ||
+        (descending ? -1 : 1) * compareRows(a.row, b.row, column) ||
+        a.index - b.index,
+    );
+    return indexed.map(({ row }) => row);
+  });
+  $effect(() => {
+    if (!showCompare && sort?.column === 'compare') sort = null;
+  });
+  $effect(() => {
+    shownKeys = rows.map((r) => r.key);
+  });
+  /** True while the list is shown in another order than its own. */
+  export function isSorted(): boolean {
+    return sort !== null;
+  }
+
+  function sortBy(column: SortColumn) {
+    sort =
+      sort?.column !== column
+        ? { column, descending: false }
+        : !sort.descending
+          ? { column, descending: true }
+          : null;
+  }
+
+  function sortMark(column: SortColumn): string {
+    return sort?.column === column ? (sort.descending ? ' ▼' : ' ▲') : '';
+  }
+
+  function ariaSort(column: SortColumn): 'ascending' | 'descending' | 'none' {
+    return sort?.column === column ? (sort.descending ? 'descending' : 'ascending') : 'none';
+  }
 
   const tagMatches = (tag: string) => highlightTags.some((t) => tag.toLowerCase().startsWith(t));
 
@@ -222,7 +293,7 @@
 
   function dragOver(event: DragEvent, index: number) {
     const zone = zoneOf(event);
-    if (!onDrop || draggingIds.length === 0 || !canDropOn(rows[index], zone)) {
+    if (!onDrop || draggingIds.length === 0 || !canDropOn(rows[index], zone) || (sort && zone === 'row')) {
       dropIndex = null;
       return;
     }
@@ -255,7 +326,7 @@
   let dropAtEnd = $state(false);
 
   function dragOverEnd(event: DragEvent) {
-    if (!onDropEnd || draggingIds.length === 0) return;
+    if (!onDropEnd || draggingIds.length === 0 || (sort && dragSource === self)) return;
     // Over a row, the row's own handler decides.
     if (event.target instanceof Element && event.target.closest('tbody tr')) {
       dropAtEnd = false;
@@ -305,8 +376,18 @@
     <table>
       <thead>
         <tr>
-          <th class="fav" title="Favourites">★</th><th class="loc">Slot</th><th>Name</th><th>Layer B</th>
-          {#if showCompare}<th class="cmp">Compare</th>{/if}
+          {#snippet heading(column: SortColumn, label: string, cls: string, tip: string)}
+            <th class={cls} aria-sort={ariaSort(column)}>
+              <button class="sort" tabindex="-1" onmousedown={(e) => e.preventDefault()} onclick={() => sortBy(column)} title={tip}
+                >{label}{sortMark(column)}</button
+              >
+            </th>
+          {/snippet}
+          {@render heading('favourite', '★', 'fav', 'Favourites first. Click again for the other way, a third time for the list order.')}
+          {@render heading('location', 'Slot', 'loc', 'Sort by slot. Click again for the other way, a third time for the list order.')}
+          {@render heading('name', 'Name', '', 'Sort by name. Click again for the other way, a third time for the list order.')}
+          {@render heading('layerB', 'Layer B', '', 'Sort by Layer B. Click again for the other way, a third time for the list order.')}
+          {#if showCompare}{@render heading('compare', 'Compare', 'cmp', 'Differences first. Click again for the other way, a third time for the list order.')}{/if}
         </tr>
       </thead>
       <tbody ondragleave={() => (dropIndex = null)}>
@@ -428,6 +509,19 @@
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+  }
+  .sort {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .sort:hover {
+    color: var(--accent);
   }
   thead th {
     position: sticky;

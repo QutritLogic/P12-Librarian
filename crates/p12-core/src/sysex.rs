@@ -39,10 +39,21 @@ pub enum Message {
     RequestGlobals,
     /// Universal Device Inquiry, addressed to all channels.
     DeviceInquiry,
-    /// Reply to a Device Inquiry; `version` is the raw `0jjjnnnn` byte.
+    /// Reply to a Device Inquiry. `version` holds the OS version bytes after
+    /// the family and model: OS 1.4.2.3 sends `[1, 4, 2]` (the last part isn't
+    /// sent).
     DeviceInquiryReply {
-        version: u8,
+        version: Vec<u8>,
     },
+}
+
+/// The OS version bytes from a Device Inquiry reply as text, e.g. "1.4.2".
+pub fn os_version_text(version: &[u8]) -> String {
+    version
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(".")
 }
 
 /// Index of the MIDI Channel parameter (NRPN 1026) in a Global Parameters
@@ -78,18 +89,20 @@ impl Message {
                 GENERAL_INFO,
                 INQUIRY_REQUEST,
             ]),
-            Self::DeviceInquiryReply { version } => out.extend([
-                UNIVERSAL_NON_REALTIME,
-                ALL_CHANNELS,
-                GENERAL_INFO,
-                INQUIRY_REPLY,
-                DSI_ID,
-                PROPHET_12_ID,
-                0x01,
-                0x00,
-                0x00,
-                *version,
-            ]),
+            Self::DeviceInquiryReply { version } => {
+                out.extend([
+                    UNIVERSAL_NON_REALTIME,
+                    ALL_CHANNELS,
+                    GENERAL_INFO,
+                    INQUIRY_REPLY,
+                    DSI_ID,
+                    PROPHET_12_ID,
+                    0x01,
+                    0x00,
+                    0x00,
+                ]);
+                out.extend(version);
+            }
             _ => {
                 out.extend([DSI_ID, PROPHET_12_ID]);
                 match self {
@@ -130,8 +143,10 @@ impl Message {
 fn parse_inquiry(rest: &[u8]) -> Result<Message> {
     match rest {
         [INQUIRY_REQUEST] => Ok(Message::DeviceInquiry),
-        [INQUIRY_REPLY, DSI_ID, PROPHET_12_ID, _, _, _, version, ..] => {
-            Ok(Message::DeviceInquiryReply { version: *version })
+        [INQUIRY_REPLY, DSI_ID, PROPHET_12_ID, _, _, _, version @ ..] if !version.is_empty() => {
+            Ok(Message::DeviceInquiryReply {
+                version: version.to_vec(),
+            })
         }
         [INQUIRY_REPLY, ..] => Err(Error::NotProphet12),
         _ => Err(Error::Malformed("unrecognised device inquiry message")),
@@ -211,13 +226,19 @@ mod tests {
 
     #[test]
     fn parses_inquiry_reply() {
+        // The reply from a Prophet 12 Keyboard running OS 1.4.2.3.
         let reply = [
-            0xF0, 0x7E, 0x00, 0x06, 0x02, 0x01, 0x2A, 0x01, 0x00, 0x00, 0x14, 0xF7,
+            0xF0, 0x7E, 0x7F, 0x06, 0x02, 0x01, 0x2A, 0x01, 0x00, 0x00, 0x01, 0x04, 0x02, 0xF7,
         ];
+        let msg = Message::parse(&reply).unwrap();
         assert_eq!(
-            Message::parse(&reply).unwrap(),
-            Message::DeviceInquiryReply { version: 0x14 }
+            msg,
+            Message::DeviceInquiryReply {
+                version: vec![1, 4, 2]
+            }
         );
+        assert_eq!(os_version_text(&[1, 4, 2]), "1.4.2");
+        assert_eq!(Message::parse(&msg.to_bytes()).unwrap(), msg);
     }
 
     #[test]

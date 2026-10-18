@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand};
-use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter};
+use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter, os_version_text};
 use p12_core::syx::{self, Entry};
 use p12_core::{Location, Message, Program, parse_selection};
 use p12_midi::{DEFAULT_PORT_PATTERN, Synth};
@@ -175,13 +175,9 @@ fn ports() -> Result<()> {
 }
 
 fn identify(synth: &mut Synth) -> Result<()> {
-    // OS 1.4.2.3 reports 0x01 here, so this byte only carries the major
-    // version; the full version is shown on the synth's Global screen.
+    // OS 1.4.2.3 reports 1.4.2: the last part is only on the Global screen.
     let version = synth.identify()?;
-    println!(
-        "Prophet 12 found, OS major version {} (see the Global screen for the full version)",
-        version & 0x0F
-    );
+    println!("Prophet 12 found, OS {}", os_version_text(&version));
     let globals = synth.fetch_globals()?;
     match global_parameter(&globals, GLOBAL_MIDI_CHANNEL) {
         Some(0) => println!("MIDI channel: All"),

@@ -13,7 +13,7 @@ use std::sync::{Mutex, MutexGuard};
 use std::thread;
 use std::time::Duration;
 
-use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter};
+use p12_core::sysex::{GLOBAL_MIDI_CHANNEL, global_parameter, os_version_text};
 use p12_core::syx::{self, Entry};
 use p12_core::{Location, Message, Program, name, parse_selection};
 use p12_midi::Synth;
@@ -275,8 +275,9 @@ pub fn list_ports() -> CmdResult<Ports> {
 }
 
 /// Connects to the given port indices and checks that a Prophet 12 answers.
+/// Returns its OS version, e.g. "1.4.2".
 #[tauri::command]
-pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<u8> {
+pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<String> {
     blocking(app, move |_, state| {
         close_synth(state); // close any previous connection first
         let mut synth = Synth::connect(&input.to_string(), &output.to_string()).str_err()?;
@@ -284,7 +285,7 @@ pub async fn connect(app: AppHandle, input: usize, output: usize) -> CmdResult<u
             .identify()
             .map_err(|e| format!("The ports opened, but no Prophet 12 answered. {e}"))?;
         *lock(&state.synth) = Some(synth);
-        Ok(version)
+        Ok(os_version_text(&version))
     })
     .await
 }

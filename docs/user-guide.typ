@@ -182,11 +182,15 @@ The Prophet 12 ignores SysEx until it's enabled. Press #ui[Global] and set:
 == Connecting
 
 Connect the Prophet 12 by USB and start the app. It looks for MIDI ports with “Prophet 12” in the name and
-connects automatically. The header then shows #text(fill: rgb("#2e9e5b"))[● Connected].
+connects automatically. The header then shows the model and OS version, e.g.
+#text(fill: rgb("#2e9e5b"))[● Prophet 12 Keyboard · OS 1.4.2] (the synth reports its OS version without the
+last part; the Global screen shows all of it).
+
+If the synth is unplugged or switched off, the app notices within a few seconds and says so. When it comes
+back, the app connects again by itself, unless you clicked #ui[Disconnect]; #ui[Connect] turns this back on.
 
 If it doesn't connect, choose the ports in the #ui[In] and #ui[Out] lists, click #ui[Connect], and use
-#ui[↻] to rescan after plugging the synth in. Connecting checks that a Prophet 12 really answers; if it
-doesn't, see @troubleshooting.
+#ui[↻] to rescan. Connecting checks that a Prophet 12 really answers; if it doesn't, see @troubleshooting.
 
 #note[
   On *Windows*, only one program at a time can use a MIDI port. Close any DAW, editor or other MIDI software
@@ -254,6 +258,9 @@ doesn't, see @troubleshooting.
   here without a synth; see @file-lists.
 - *Status bar:* what just happened, or the progress of a running operation.
 
+Drag the gap between the panes to make one wider; double-click it for equal widths. The app remembers the
+width.
+
 Every button has a tooltip. If a button is greyed out, its tooltip says why.
 
 == Slots
@@ -278,6 +285,15 @@ the #ui[Layer B] column shows the second layer's name (@layer-b).
   [Double-click], [Audition the patch (@audition).],
   [Right-click], [Menu with everything you can do with the selection.],
 )
+
+== Sorting
+
+Click a column heading (#ui[★], #ui[Slot], #ui[Name], #ui[Layer B] or #ui[Compare]) to sort the list by it, again
+for the other way round, and a third time for the list's own order; ▲ or ▼ shows which. Sorting only changes
+how the list is shown: #ui[Save] still saves a file in its own order. Selected patches follow the order
+shown when you write them to consecutive slots (by dragging or with #ui[Write to synth…]) or use
+#ui[Save selected…]. While a list is sorted, patches can't be dropped
+onto it, except onto a Layer B cell, because the slots they would fill aren't in order on screen.
 
 = Backing up
 
@@ -325,7 +341,8 @@ slot it came from.
 
 == Opening a file
 
-#ui[Open .syx…] (#key("Ctrl", "O")) loads a `.syx` file into the File pane. Files from this app, from the synth's
+#ui[Open .syx…] (#key("Ctrl", "O")) loads a `.syx` file into the File pane; #ui[File → Open recent] lists the
+last eight files you opened or saved there. Files from this app, from the synth's
 own #ui[Dump] functions and from other tools work. SysEx in the file that isn't a Prophet 12 program
 (for example the play lists in a #ui[Dump All User Banks] file) is skipped and counted in the status bar.
 
@@ -721,8 +738,8 @@ For the curious, and for anyone building on this work.
   in both layers of every program examined, so they are kept when a layer is copied from another program.
 - *Global Parameters dump*: the manual describes 50 nibbles, but the synth (OS 1.4.2.3) sends one byte per
   parameter, 26 bytes in all. The MIDI channel is the third byte (0 = All, 1–16).
-- The *Device Inquiry* reply only reports the main OS version (1 for OS 1.4.2.3); the Global screen shows the
-  full version.
+- The *Device Inquiry* reply gives the OS version without its last part: OS 1.4.2.3 replies 1.4.2, which the
+  header shows after connecting. The Global screen shows the full version.
 
 = About
 

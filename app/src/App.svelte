@@ -54,6 +54,15 @@
   let inputIndex = $state(-1);
   let outputIndex = $state(-1);
   let connected = $state(false);
+  /** The synth's OS version while connected, e.g. "1.4.2". */
+  let osVersion = $state('');
+  /** The port names connected to, to notice when they disappear. */
+  let connectedPorts: { input: string; output: string } | null = null;
+  /** Connect by itself when a Prophet 12 appears; off after Disconnect, on after Connect. */
+  let autoConnect = true;
+  /** The Prophet 12 pane's share of the width; see the splitter. */
+  let split = $state(0.5);
+  let mainEl = $state<HTMLElement>();
 
   // Tags and favourites, by sound (Patch.fingerprint), shared by both panes.
   const tagStore = new SvelteMap<string, TagEntry>();
@@ -295,9 +304,17 @@
       .map((k) => synthPatches.get(k))
       .filter((p) => p !== undefined),
   );
-  const selectedFile = $derived(
-    filePatches.filter((p) => fileSelected.includes(String(p.id)) && visibleFile.has(String(p.id))),
-  );
+  /** The File pane's rows in the order shown, which a sorted column changes. */
+  let fileShownKeys = $state<string[]>([]);
+  /** The selected file patches in the order shown, so writing and saving follow a sorted list. */
+  const selectedFile = $derived.by(() => {
+    const byKey = new Map(filePatches.map((p) => [String(p.id), p]));
+    const chosen = new Set(fileSelected);
+    return fileShownKeys
+      .filter((k) => chosen.has(k) && visibleFile.has(k))
+      .map((k) => byKey.get(k))
+      .filter((p) => p !== undefined);
+  });
   const fileName = $derived(filePath?.split(/[\\/]/).pop() ?? null);
 
   /** "40 same · 3 differ · 11 not on the synth", for the File pane when comparing. */
@@ -412,27 +429,92 @@
     }
   }
 
-  async function refreshPorts() {
-    ports = await api.listPorts();
-    const find = (names: string[]) => names.findIndex((n) => n.toLowerCase().includes('prophet 12'));
-    if (inputIndex < 0 || inputIndex >= ports.inputs.length) inputIndex = find(ports.inputs);
-    if (outputIndex < 0 || outputIndex >= ports.outputs.length) outputIndex = find(ports.outputs);
+  /** Port names last seen, to act only when something changes. */
+  let seenPorts = '';
+
+  /** Port names change index when devices come and go, so the choice is kept by name. */
+  function applyPorts(next: Ports) {
+    const inputName = ports.inputs[inputIndex];
+    const outputName = ports.outputs[outputIndex];
+    ports = next;
+    const find = (names: string[], keep: string | undefined) => {
+      const kept = keep === undefined ? -1 : names.indexOf(keep);
+      return kept >= 0 ? kept : names.findIndex((n) => n.toLowerCase().includes('prophet 12'));
+    };
+    inputIndex = find(ports.inputs, inputName);
+    outputIndex = find(ports.outputs, outputName);
   }
 
-  function connect() {
+  async function refreshPorts() {
+    const next = await api.listPorts();
+    seenPorts = JSON.stringify(next);
+    applyPorts(next);
+  }
+
+  function connect(quiet = false) {
     return run('Connecting', async () => {
       connected = false;
-      await api.connect(inputIndex, outputIndex);
+      osVersion = await api.connect(inputIndex, outputIndex);
       connected = true;
-      info('Connected to the Prophet 12.');
+      autoConnect = true;
+      connectedPorts = { input: ports.inputs[inputIndex], output: ports.outputs[outputIndex] };
+      info(quiet ? 'The Prophet 12 is back; connected again.' : 'Connected to the Prophet 12.');
     });
   }
 
   async function disconnect() {
     await api.disconnect();
     connected = false;
+    connectedPorts = null;
+    autoConnect = false;
     info('Disconnected.');
   }
+
+  /**
+   * Every two seconds: notices when the connected synth is unplugged or switched off,
+   * and connects again when a Prophet 12 appears (unless the user chose Disconnect).
+   */
+  async function watchPorts() {
+    if (busy || mustAccept) return;
+    let next: Ports;
+    try {
+      next = await api.listPorts();
+    } catch {
+      return;
+    }
+    const names = JSON.stringify(next);
+    if (names === seenPorts) return;
+    seenPorts = names;
+    if (busy) return;
+    if (connected && connectedPorts) {
+      if (next.inputs.includes(connectedPorts.input) && next.outputs.includes(connectedPorts.output)) {
+        applyPorts(next);
+        return;
+      }
+      await api.disconnect();
+      connected = false;
+      connectedPorts = null;
+      applyPorts(next);
+      message = {
+        text: 'The Prophet 12 is no longer there (unplugged or switched off). It connects again when it comes back.',
+        error: true,
+      };
+      return;
+    }
+    applyPorts(next);
+    const isP12 = (n: string | undefined) => !!n?.toLowerCase().includes('prophet 12');
+    if (!connected && autoConnect && isP12(ports.inputs[inputIndex]) && isP12(ports.outputs[outputIndex])) {
+      // A freshly plugged-in synth may need a moment before it answers.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      if (!connected && !busy) await connect(true);
+    }
+  }
+
+  /** "Prophet 12 Keyboard" or "Prophet 12 Module", from the port name where it says so. */
+  const model = $derived.by(() => {
+    const name = connectedPorts?.input.toLowerCase() ?? '';
+    return name.includes('module') ? 'Prophet 12 Module' : name.includes('keyboard') ? 'Prophet 12 Keyboard' : 'Prophet 12';
+  });
 
   /**
    * Reads programs from the synth. Returns whether all were read, the slots that
@@ -616,6 +698,7 @@
       await api.saveSyx(filePatches.map((p) => p.id), path);
       fileDirty = false;
       info(`Saved ${filePatches.length} patches to ${path}`);
+      api.recentFile(path);
     });
   }
 
@@ -629,6 +712,7 @@
       filePath = path;
       fileDirty = false;
       info(`Saved ${filePatches.length} patches to ${path}`);
+      api.recentFile(path);
     });
   }
 
@@ -700,16 +784,28 @@
     });
   }
 
-  async function openPath(path: string) {
+  async function openPath(path: string, fromRecent = false) {
+    let opened = false;
     await run('Opening', async () => {
       const result = await api.openSyx(path);
       filePath = path;
       filePatches = result.patches;
       fileSelected = [];
       fileDirty = false;
+      opened = true;
       const skipped = result.skipped ? ` (${result.skipped} other SysEx messages skipped)` : '';
       info(`Opened ${result.patches.length} patches${skipped}.`);
     });
+    if (opened && !isRestorePoint(path)) api.recentFile(path);
+    if (!opened && fromRecent && message) {
+      // Moved, renamed or deleted since: it's no use in the menu.
+      api.recentFile(path, true);
+      message = { ...message, text: `${message.text} It was taken off File → Open recent.` };
+    }
+  }
+
+  async function openRecent(path: string) {
+    if (await discardChanges()) await openPath(path, true);
   }
 
   function audition(patch: Patch | undefined) {
@@ -998,6 +1094,7 @@
   function applySettings(settings: Settings) {
     appearance = { theme: settings.theme, font: settings.font };
     auditionSettings = settings.audition;
+    if (!splitting) split = settings.split;
     document.documentElement.dataset.font = settings.font;
     document.documentElement.dataset.theme = settings.theme;
     if (settings.zoom !== zoomLevel) info(`Zoom ${Math.round(settings.zoom * 100)}%`);
@@ -1145,6 +1242,40 @@
 
   let version = $state('');
 
+  // The splitter between the panes. Saved when let go, so dragging doesn't write the settings file.
+  let splitting = false;
+
+  function splitAt(clientX: number) {
+    if (!mainEl) return;
+    const box = mainEl.getBoundingClientRect();
+    const style = getComputedStyle(mainEl);
+    const left = box.left + parseFloat(style.paddingLeft);
+    const width = box.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    split = Math.min(0.75, Math.max(0.25, (clientX - left) / width));
+  }
+
+  function splitterDown(event: PointerEvent) {
+    if (event.button !== 0) return;
+    splitting = true;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function splitterUp() {
+    if (!splitting) return;
+    splitting = false;
+    api.setSplit(split);
+  }
+
+  function splitterKey(event: KeyboardEvent) {
+    const step = { ArrowLeft: -0.05, ArrowRight: 0.05 }[event.key];
+    if (step === undefined && event.key !== 'Home') return;
+    event.preventDefault();
+    event.stopPropagation();
+    split = event.key === 'Home' ? 0.5 : Math.min(0.75, Math.max(0.25, split + step!));
+    api.setSplit(split);
+  }
+
   onMount(() => {
     getVersion().then((v) => (version = v));
     api.getTags().then(setTags, (e) => (message = { text: errorText(e), error: true }));
@@ -1154,6 +1285,8 @@
     window.addEventListener('wheel', wheel, { passive: false });
     const unlistenErrors = listen<string>('app-error', (event) => (message = { text: event.payload, error: true }));
     const unlistenSettings = listen<Settings>('settings', (event) => applySettings(event.payload));
+    const unlistenRecent = listen<string>('open-recent', (event) => openRecent(event.payload));
+    const portWatch = setInterval(watchPorts, 2000);
     api.getSettings().then((settings) => {
       zoomLevel = settings.zoom; // no "Zoom" message at startup
       applySettings(settings);
@@ -1173,6 +1306,8 @@
       unlistenSettings.then((f) => f());
       unlistenErrors.then((f) => f());
       unlistenClose.then((f) => f());
+      unlistenRecent.then((f) => f());
+      clearInterval(portWatch);
       window.removeEventListener('wheel', wheel);
     };
   });
@@ -1184,14 +1319,14 @@
   <h1>P12 Librarian</h1>
   <div class="ports">
     <label>
-      In
+      <span>In</span>
       <select bind:value={inputIndex} disabled={!!busy} title="MIDI port the app receives from (the synth's output)">
         <option value={-1}>—</option>
         {#each ports.inputs as name, i}<option value={i}>{name}</option>{/each}
       </select>
     </label>
     <label>
-      Out
+      <span>Out</span>
       <select bind:value={outputIndex} disabled={!!busy} title="MIDI port the app sends to (the synth's input)">
         <option value={-1}>—</option>
         {#each ports.outputs as name, i}<option value={i}>{name}</option>{/each}
@@ -1199,11 +1334,15 @@
     </label>
     <button onclick={refreshPorts} disabled={!!busy} title="Rescan MIDI ports, e.g. after plugging in the synth">↻</button>
     {#if connected}
-      <button onclick={disconnect} disabled={!!busy} title="Close the MIDI connection">Disconnect</button>
+      <button
+        onclick={disconnect}
+        disabled={!!busy}
+        title="Close the MIDI connection. The app then won't connect by itself until you click Connect.">Disconnect</button
+      >
     {:else}
       <button
         class="primary"
-        onclick={connect}
+        onclick={() => connect()}
         disabled={!!busy || inputIndex < 0 || outputIndex < 0}
         title={inputIndex < 0 || outputIndex < 0
           ? 'Choose an input and an output port first'
@@ -1213,11 +1352,16 @@
     <span
       class="status"
       class:ok={connected}
-      title={connected ? 'The Prophet 12 answered and is ready' : 'Not talking to a synth'}>{connected ? '● Connected' : '○ Not connected'}</span>
+      title={connected
+        ? `${model}, OS ${osVersion}, answered and is ready. The Global screen shows the full OS version.`
+        : 'Not talking to a synth. A Prophet 12 connects by itself when it is plugged in or switched on.'}
+      >{#if connected}● <span class="model">{model}&nbsp;·&nbsp;</span><span class="connected">Connected&nbsp;·&nbsp;</span>OS {osVersion}{:else}○
+        Not connected{/if}</span
+    >
   </div>
 </header>
 
-<main>
+<main bind:this={mainEl} style:grid-template-columns="minmax(0, {split}fr) 16px minmax(0, {1 - split}fr)">
   <section>
     <div class="section-head">
       <h2>Prophet 12</h2>
@@ -1311,6 +1455,24 @@
     </div>
   </section>
 
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+  <div
+    class="splitter"
+    role="separator"
+    aria-orientation="vertical"
+    aria-valuenow={Math.round(split * 100)}
+    aria-valuemin={25}
+    aria-valuemax={75}
+    tabindex="0"
+    title="Drag to resize the panes. Double-click for equal widths."
+    onpointerdown={splitterDown}
+    onpointermove={(e) => splitting && splitAt(e.clientX)}
+    onpointerup={splitterUp}
+    onpointercancel={splitterUp}
+    ondblclick={() => ((split = 0.5), api.setSplit(0.5))}
+    onkeydown={splitterKey}
+  ></div>
+
   <section>
     <div class="section-head">
       <h2>
@@ -1368,6 +1530,7 @@
       canDropOn={(_row, zone) => zone === 'row' && !fileFiltering}
       rearranges={(sameTable) => sameTable}
       onDropEnd={dropAtFileEnd}
+      bind:shownKeys={fileShownKeys}
       showCompare={comparing && synthPatches.size > 0}
       onActivate={(row) => audition(filePatches.find((p) => p.id === row.id))}
       onContextMenu={(e) => openContextMenu('file', e)}
@@ -1551,12 +1714,22 @@
   }
   .ports {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
     min-width: 0;
   }
+  .ports label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 0;
+  }
   .ports select {
-    max-width: 260px;
+    max-width: 220px;
+    min-width: 6em;
   }
   .status {
     color: var(--muted);
@@ -1565,29 +1738,65 @@
   .status.ok {
     color: var(--ok);
   }
+  /* The model where there's room; "Connected" where there isn't. */
+  .status .connected {
+    display: none;
+  }
+  @media (max-width: 1500px) {
+    .status .model {
+      display: none;
+    }
+    .status .connected {
+      display: inline;
+    }
+  }
   main {
     flex: 1;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    gap: 0;
     padding: 16px;
     min-height: 0;
+  }
+  .splitter {
+    cursor: col-resize;
+    position: relative;
+    outline: none;
+  }
+  /* A thin line in the middle of the gap, stronger on hover and when focused. */
+  .splitter::after {
+    content: '';
+    position: absolute;
+    inset: 0 7px;
+    border-radius: 1px;
+    background: transparent;
+  }
+  .splitter:hover::after,
+  .splitter:focus-visible::after {
+    background: var(--accent);
   }
   section {
     display: flex;
     flex-direction: column;
     gap: 8px;
     min-height: 0;
+    min-width: 0;
   }
   .section-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
   }
+  .section-head .actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
   h2 {
     font-size: 14px;
     margin: 0;
+    white-space: nowrap;
   }
   .actions {
     display: flex;
