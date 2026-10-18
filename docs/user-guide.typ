@@ -2,7 +2,7 @@
 // Build: docs/build.sh (needs the `typst` CLI). Output goes to
 // app/src-tauri/resources/user-guide.pdf, which the app opens on F1.
 
-#let version = "0.8.2"
+#let version = "0.9.0"
 #let accent = rgb("#2f6fd6")
 #let muted = rgb("#6b7380")
 #let soft = rgb("#eef2f8")
