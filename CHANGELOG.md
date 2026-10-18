@@ -13,6 +13,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-18
+
 ### Added
 
 - Sortable columns: click a heading to sort by favourite, slot, name, Layer B or comparison; click again for the
@@ -175,7 +177,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.0...v0.8.1
