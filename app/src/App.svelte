@@ -10,6 +10,7 @@
   import PreferencesDialog from './lib/PreferencesDialog.svelte';
   import RestoreDialog from './lib/RestoreDialog.svelte';
   import RearrangeDialog from './lib/RearrangeDialog.svelte';
+  import BankSheetDialog, { type SheetChoice } from './lib/BankSheetDialog.svelte';
   import DisclaimerDialog from './lib/DisclaimerDialog.svelte';
   import LicencesDialog from './lib/LicencesDialog.svelte';
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
@@ -47,6 +48,7 @@
     type RestorePoint,
     type AuditionSettings,
     type Settings,
+    type Sheet,
     type TagChange,
     type TagEntry,
     type WriteRequest,
@@ -101,7 +103,7 @@
   let message = $state<{ text: string; error: boolean; undo?: string } | null>(null);
   let backupDir = $state('');
   let writing = $state<{ patches: Patch[]; start: string | null } | null>(null);
-  let dialog = $state<'about' | 'disclaimer' | 'licences' | 'appearance' | 'preferences' | 'restore' | null>(null);
+  let dialog = $state<'about' | 'disclaimer' | 'licences' | 'appearance' | 'preferences' | 'restore' | 'bankSheet' | null>(null);
   /** True until the user accepts the disclaimer; nothing touches the synth before that. */
   let mustAccept = $state(false);
   let renaming = $state<{ pane: Pane; title: string; patches: Patch[]; proposed: string[] } | null>(null);
@@ -636,6 +638,47 @@
       await api.saveSyx(ids, path);
       info(`Saved all 396 User programs to ${path}`);
     }, true);
+  }
+
+  /** Saves the chosen banks, or the File pane's list, as a PDF or CSV bank sheet. */
+  async function exportSheet({ source, banks, format }: SheetChoice) {
+    dialog = null;
+    const now = new Date().toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+    const row = (slot: string, p: Patch) => ({
+      slot,
+      name: p.name,
+      layerB: p.layerB,
+      favourite: isFavourite(p),
+      tags: tagsOf(p),
+    });
+    let sheet: Sheet;
+    let suggested: string;
+    if (source === 'synth') {
+      const synth = connected ? `${model}, OS ${osVersion}` : 'Prophet 12';
+      sheet = {
+        title: 'Prophet 12',
+        note: `${synth} · ${banks.join(', ')} · ${now}`,
+        sections: banks.map((b) => ({ bank: b, rows: bankSlots(b).map((s) => row(s, synthPatches.get(s)!)) })),
+      };
+      suggested = `p12-bank-sheet-${banks.length === ALL_BANKS.length ? 'all' : banks.join('-')}-${timestamp().slice(0, 8)}`;
+    } else {
+      const name = fileName ?? 'New list';
+      const unsaved = fileDirty ? ', with changes not saved yet' : '';
+      sheet = {
+        title: name,
+        note: `${filePatches.length} patches${unsaved} · ${now}`,
+        sections: [{ bank: '', rows: filePatches.map((p, i) => row(fileLabel(p, i), p)) }],
+      };
+      suggested = name.replace(/\.syx$/i, '');
+    }
+    const filter = format === 'pdf' ? { name: 'PDF', extensions: ['pdf'] } : { name: 'CSV', extensions: ['csv'] };
+    let path = await save({ defaultPath: `${backupDir}/${suggested}.${format}`, filters: [filter] });
+    if (!path) return;
+    if (!path.toLowerCase().endsWith(`.${format}`)) path += `.${format}`;
+    await run('Exporting', async () => {
+      await api.exportSheet(sheet, path!);
+      info(`Saved the bank sheet to ${path}`);
+    });
   }
 
   async function saveSelected(patches: Patch[]) {
@@ -1237,6 +1280,7 @@
     else if (id === 'add_file') addFile();
     else if (id === 'save') saveList();
     else if (id === 'save_as') saveListAs();
+    else if (id === 'bank_sheet') dialog = 'bankSheet';
     else if (id === 'backup') {
       if (connected) backUpAll();
       else message = { text: 'Connect to the Prophet 12 before backing up.', error: true };
@@ -1699,6 +1743,15 @@
   <LicencesDialog onClose={() => (dialog = null)} />
 {:else if dialog === 'disclaimer'}
   <DisclaimerDialog onClose={() => (dialog = null)} />
+{:else if dialog === 'bankSheet'}
+  <BankSheetDialog
+    {readCount}
+    file={filePatches.length > 0
+      ? { name: fileName ?? 'New list', count: filePatches.length }
+      : null}
+    onExport={exportSheet}
+    onCancel={() => (dialog = null)}
+  />
 {:else if dialog === 'restore'}
   <RestoreDialog
     {connected}

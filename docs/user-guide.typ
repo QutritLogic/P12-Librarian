@@ -337,6 +337,22 @@ Select patches in either pane, then:
 The files are ordinary SysEx: other librarians and SysEx tools can read them, and each one remembers which
 slot it came from.
 
+== Bank sheets <bank-sheet>
+
+#ui[File → Export bank sheet…] saves a list of patch names, to print or to open in a spreadsheet:
+
+- *Prophet 12 banks*: tick the banks to include. Only banks that have been read completely can be chosen.
+- *The list in the File pane*: every patch in the list as it is shown, including changes not saved yet.
+
+As a *PDF* it is A4, one bank per page in two columns: slot, name, Layer B, and a ★ for favourites. As *CSV*
+it has one row per patch with slot, name, Layer B, favourite and tags, for LibreOffice Calc, Excel or similar.
+
+#example[a printed sheet of the User banks][
+  + #ui[Read all User banks].
+  + #ui[File → Export bank sheet…], keep #ui[U1]–#ui[U4] and #ui[PDF, to print], and click #ui[Export…].
+  + Choose where to save it, then print the four pages.
+]
+
 = Writing patches to the synth
 
 == Opening a file

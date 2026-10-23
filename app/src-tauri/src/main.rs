@@ -3,6 +3,7 @@
 mod commands;
 mod menu;
 mod settings;
+mod sheet;
 mod tags;
 
 use tauri::Manager;
@@ -48,6 +49,7 @@ fn main() {
             commands::copy_to_layer_b,
             commands::swap_programs,
             commands::move_programs,
+            sheet::export_sheet,
             commands::backup_dir,
             commands::list_restore_points,
             commands::restore,

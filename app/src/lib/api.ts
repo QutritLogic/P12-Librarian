@@ -108,6 +108,19 @@ export interface RenameRequest {
   name: string;
 }
 
+/** A list of patches to export as a bank sheet (see sheet.rs). */
+export interface Sheet {
+  /** "Prophet 12", or the file name. */
+  title: string;
+  /** One line under the title. */
+  note: string;
+  /** One per bank, or one with bank "" for a list. */
+  sections: {
+    bank: string;
+    rows: { slot: string; name: string; layerB: string; favourite: boolean; tags: string[] }[];
+  }[];
+}
+
 export const api = {
   listPorts: () => invoke<Ports>('list_ports'),
   /** Returns the synth's OS version, e.g. "1.4.2". */
@@ -144,6 +157,8 @@ export const api = {
     invoke<{ backupPath: string; written: Patch[] }>('move_programs', { moves }),
   copyToLayerB: (id: number, target: string) =>
     invoke<{ backupPath: string; written: Patch[] }>('copy_to_layer_b', { id, target }),
+  /** Writes CSV or PDF, by the path's extension. */
+  exportSheet: (sheet: Sheet, path: string) => invoke<void>('export_sheet', { sheet, path }),
   backupDir: () => invoke<string>('backup_dir'),
   listRestorePoints: () => invoke<RestorePoint[]>('list_restore_points'),
   restore: (path: string) => invoke<{ backupPath: string; written: Patch[] }>('restore', { path }),

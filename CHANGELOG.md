@@ -20,6 +20,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
   long row of slots. The dialog shows what goes where and roughly how long it takes, and remembers the choice.
   Backed up, verified and undoable like a swap.
 - Holding a dragged patch over a bank tab opens that bank, so patches can be dropped in another bank.
+- Bank sheets: File → Export bank sheet… saves banks read from the synth, or the File pane's list, as a PDF to
+  print (A4, one bank per page with slot, name, Layer B and favourites) or as CSV for a spreadsheet (with tags).
 
 ## [0.10.0] - 2026-10-18
 

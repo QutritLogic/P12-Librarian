@@ -35,6 +35,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
             Some("CmdOrCtrl+B"),
         )?)
         .item(&item("restore_points", "Restore points…", None)?)
+        .item(&item("bank_sheet", "Export bank sheet…", None)?)
         .separator()
         .item(&item(
             "preferences",
