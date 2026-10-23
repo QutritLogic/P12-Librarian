@@ -2628,6 +2628,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "p12-sim"
+version = "0.11.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "midir",
+ "p12-core",
+ "p12-midi",
+]
+
+[[package]]
 name = "pango"
 version = "0.18.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

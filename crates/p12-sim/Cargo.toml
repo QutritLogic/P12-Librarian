@@ -1,0 +1,18 @@
+[package]
+name = "p12-sim"
+description = "A simulated Prophet 12 on virtual MIDI ports, for testing without the synth"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "p12-sim"
+path = "src/main.rs"
+
+[dependencies]
+p12-core.workspace = true
+p12-midi.workspace = true
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+midir = "0.11"

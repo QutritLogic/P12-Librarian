@@ -9,6 +9,7 @@ crates/
   p12-core/   protocol only, no I/O: 7-in-8 packing, Program, Message, .syx files
   p12-midi/   midir transport: port selection, request/reply with timeout, throttled writes
   p12-cli/    the `p12` command-line tool
+  p12-sim/    a simulated Prophet 12 on virtual MIDI ports, for testing without the synth
 app/
   src-tauri/  Tauri 2 backend (Rust, uses p12-core + p12-midi)
   src/        Svelte 5 + TypeScript frontend
@@ -61,6 +62,31 @@ The installer is unsigned, so Windows SmartScreen warns before running it.
 
 `cargo build` / `cargo test` at the workspace root build only the libraries and the
 CLI, so they work without the webkit packages.
+
+### macOS (built from source, not released)
+
+See [docs/macos.md](docs/macos.md): prerequisites for macOS 11 Big Sur and newer, building, and
+testing with the simulator.
+
+### Testing without the synth
+
+`p12-sim` pretends to be a Prophet 12 on virtual MIDI ports named "Prophet 12 Simulator"
+(macOS and Linux; Windows has no virtual ports). Start it, then the app, which connects by
+itself:
+
+```bash
+cargo run --release -p p12-sim                         # made-up patches in all 8 banks
+cargo run --release -p p12-sim -- --state sim.syx      # keep writes in sim.syx across restarts
+cargo run --release -p p12-sim -- --load backup.syx    # start from a real backup
+cargo run --release -p p12-sim -- --fail-every 5       # drop every 5th write, to test verification
+p12 --port simulator identify                          # the CLI, if a real synth is connected too
+```
+
+It answers Device Inquiry (OS 1.4.2), program, edit buffer and Global parameter requests,
+stores programs written to U1-U4 and ignores writes to the Factory banks. The last ten slots
+of U4 repeat programs from U1, some renamed, so Compare and the duplicate badges have
+something to find. With a real Prophet 12 connected as well, the app picks whichever port
+comes first; choose the simulator in the In and Out menus.
 
 The left pane shows the synth's banks (read a bank, read all User banks, or back up all
 of them to one file). The right pane shows an opened `.syx` file. Drag patches from the

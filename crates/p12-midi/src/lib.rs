@@ -98,20 +98,26 @@ fn select_port(kind: &'static str, names: &[String], pattern: &str) -> Result<us
 
 /// Reassembles complete SysEx messages from the input stream. Some backends
 /// deliver long SysEx in chunks, and realtime bytes may be interleaved.
-struct SysexAssembler {
+pub struct SysexAssembler {
     buffer: Vec<u8>,
     active: bool,
 }
 
+impl Default for SysexAssembler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SysexAssembler {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             buffer: Vec::new(),
             active: false,
         }
     }
 
-    fn feed(&mut self, bytes: &[u8], mut emit: impl FnMut(Vec<u8>)) {
+    pub fn feed(&mut self, bytes: &[u8], mut emit: impl FnMut(Vec<u8>)) {
         for &b in bytes {
             match b {
                 SYSEX_START => {
