@@ -113,6 +113,15 @@ impl Audition {
     }
 }
 
+/// What a drop within the Prophet 12 pane does, as last chosen in its dialog.
+#[derive(Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Rearrange {
+    #[default]
+    Swap,
+    Move,
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -126,6 +135,7 @@ pub struct Settings {
     pub split: f64,
     /// `.syx` files opened or saved in the File pane, newest first.
     pub recent_files: Vec<String>,
+    pub rearrange: Rearrange,
 }
 
 impl Default for Settings {
@@ -138,6 +148,7 @@ impl Default for Settings {
             disclaimer_accepted: 0,
             split: 0.5,
             recent_files: Vec::new(),
+            rearrange: Rearrange::Swap,
         }
     }
 }
@@ -330,6 +341,12 @@ pub fn set_split(app: AppHandle, split: f64) {
     if split.is_finite() {
         update(&app, |s| s.split = split.clamp(0.25, 0.75));
     }
+}
+
+/// Remembers whether drops within the Prophet 12 pane swap or move.
+#[tauri::command]
+pub fn set_rearrange(app: AppHandle, rearrange: Rearrange) {
+    update(&app, |s| s.rearrange = rearrange);
 }
 
 /// Adds a file to File → Open recent, or removes it (e.g. when it's gone).

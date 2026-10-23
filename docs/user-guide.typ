@@ -414,20 +414,31 @@ says where. Search `is:dup` to list them all.
 
 == Rearranging patches on the synth <rearrange>
 
-Drag a patch in the Prophet 12 pane onto another slot to *swap* them: #raw("U1:04") goes to #raw("U4:50") and
-#raw("U4:50") goes to #raw("U1:04"). The app asks first, then reads both slots, keeps them as a restore point,
-writes each patch to the other's slot and checks the result. #ui[Undo] (#key("Ctrl", "Z")) swaps them back.
+Drag a patch in the Prophet 12 pane onto another slot, and the app asks how to rearrange them:
 
-Several selected patches swap with the same number of consecutive slots from where you drop them, pair by pair.
-The two groups must not overlap.
+- *Swap*: the two patches trade places. #raw("U1:04") goes to #raw("U4:50") and #raw("U4:50") goes to
+  #raw("U1:04"). Several selected patches swap with the same number of consecutive slots from where you drop
+  them, pair by pair; the two groups must not overlap.
+- *Move and shift*: the patch goes to the slot you drop it on, and the patches in between move up or down one
+  place to close the gap, as in a list. Several selected patches are gathered at the drop slot in slot order.
+  The four User banks count as one long row of slots, so a patch moved from #raw("U1:99") to #raw("U2:01")
+  pushes #raw("U2:01") back into #raw("U1:99"). Nothing is lost: the patches only change places.
+
+The dialog lists what goes where and how long it takes. The app remembers your choice for the next drop. Either
+way it reads the slots that change, keeps them as a restore point, writes the patches and checks the result.
+#ui[Undo] (#key("Ctrl", "Z")) puts everything back. A long move rewrites many slots: moving a patch from
+#raw("U1:01") to #raw("U4:99") rewrites all 396, which takes a couple of minutes.
+
+To drop in another bank, hold the dragged patch over the bank's tab for a moment; the tab opens.
 
 To *copy* instead, hold #key("Ctrl") while dropping: the patch is written to the new slot and stays where it was.
 Patches from the Factory banks are always copied, since those banks can't be changed.
 
 #example[moving a pad to the top of a bank][
   + Read bank U1.
-  + Drag #raw("U1:37") onto #raw("U1:01") and click #ui[Swap].
-  + The pad is now at #raw("U1:01"), and the patch that was there is at #raw("U1:37").
+  + Drag #raw("U1:37") onto #raw("U1:01"), choose #ui[Move and shift] and click #ui[Move].
+  + The pad is now at #raw("U1:01"), and the patches that were at #raw("U1:01")–#raw("U1:36") are one place
+    further down, at #raw("U1:02")–#raw("U1:37").
 ]
 
 == Audition <audition>
@@ -564,7 +575,7 @@ on the synth or changed in your `.syx` files.
 - Tags appear after the name. Click one to show all patches with that tag, or search for it with `#tag`.
 
 Tags and favourites belong to the *sound*, not to the slot or the name. They stay with a patch when it's
-swapped, written to another slot, renamed, given a new Layer B, saved to a file or restored from a backup,
+swapped, moved, written to another slot, renamed, given a new Layer B, saved to a file or restored from a backup,
 and they show up on the
 same patch in any `.syx` file. Patches that sound exactly the same share them, so tagging one unedited
 “Basic Program” tags them all.
@@ -589,7 +600,7 @@ The Factory banks are never written: the app refuses before anything is sent.
 
 == Undo and restore points <restore>
 
-Right after a write, rename, initialize or Layer B copy, the status bar shows an #ui[Undo] button
+Right after a write, swap, move, rename, initialize or Layer B copy, the status bar shows an #ui[Undo] button
 (#key("Ctrl", "Z")). It writes the previous contents back from the backup just made, with the same backup and
 verification, so the undo can itself be undone.
 

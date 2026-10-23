@@ -13,6 +13,14 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Added
+
+- Move and shift on the synth: dropping patches within the Prophet 12 pane now asks whether to swap them or to
+  move them to the drop slot, with the patches in between moving up or down to close the gap. U1–U4 count as one
+  long row of slots. The dialog shows what goes where and roughly how long it takes, and remembers the choice.
+  Backed up, verified and undoable like a swap.
+- Holding a dragged patch over a bank tab opens that bank, so patches can be dropped in another bank.
+
 ## [0.10.0] - 2026-10-18
 
 ### Added

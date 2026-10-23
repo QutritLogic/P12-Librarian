@@ -70,7 +70,11 @@ export interface Settings {
   /** The Prophet 12 pane's share of the window width. */
   split: number;
   recent_files: string[];
+  rearrange: Rearrange;
 }
+
+/** What a drop within the Prophet 12 pane does: swap slots, or move and shift the patches in between. */
+export type Rearrange = 'swap' | 'move';
 
 /** Note name as the Prophet 12 shows it: C3 is middle C (MIDI note 60). */
 export function noteName(note: number): string {
@@ -135,6 +139,9 @@ export const api = {
     invoke<{ backupPath: string; written: Patch[] }>('init_programs', { locations }),
   swapPrograms: (pairs: [string, string][]) =>
     invoke<{ backupPath: string; written: Patch[] }>('swap_programs', { pairs }),
+  /** Each [from, to] pair writes the program in `from` to `to`. */
+  movePrograms: (moves: [string, string][]) =>
+    invoke<{ backupPath: string; written: Patch[] }>('move_programs', { moves }),
   copyToLayerB: (id: number, target: string) =>
     invoke<{ backupPath: string; written: Patch[] }>('copy_to_layer_b', { id, target }),
   backupDir: () => invoke<string>('backup_dir'),
@@ -148,6 +155,7 @@ export const api = {
   setAppearance: (change: { theme?: ThemeId; font?: FontId }) => invoke<void>('set_appearance', change),
   setAudition: (audition: AuditionSettings) => invoke<void>('set_audition', { audition }),
   setSplit: (split: number) => invoke<void>('set_split', { split }),
+  setRearrange: (rearrange: Rearrange) => invoke<void>('set_rearrange', { rearrange }),
   recentFile: (path: string, remove = false) => invoke<void>('recent_file', { path, remove }),
   disclaimerAccepted: () => invoke<boolean>('disclaimer_accepted'),
   acceptDisclaimer: () => invoke<void>('accept_disclaimer'),
@@ -170,6 +178,43 @@ export function slot(bank: string, program: number): string {
 
 export function bankSlots(bank: string): string[] {
   return Array.from({ length: PROGRAMS_PER_BANK }, (_, i) => slot(bank, i + 1));
+}
+
+/** Every User slot, U1:01 to U4:99, in order. */
+export const USER_SLOTS = USER_BANKS.flatMap(bankSlots);
+
+/**
+ * Pairs the slots of the dragged patches with consecutive slots from the drop
+ * target, to swap them: [source, target] pairs, or why it can't be done.
+ */
+export function swapPlan(sources: string[], target: string): [string, string][] | string {
+  if (sources.length === 1 && sources[0] === target) return []; // dropped back where it was
+  const bank = target.slice(0, 2);
+  const slots = bankSlots(bank);
+  const start = slots.indexOf(target);
+  const targets = slots.slice(start, start + sources.length);
+  if (targets.length < sources.length) return `There aren't ${sources.length} slots from ${target} to the end of ${bank}.`;
+  if (targets.some((t) => sources.includes(t))) {
+    return 'Those slots overlap the ones being dragged. Drop them on slots outside the selection to swap.';
+  }
+  return sources.map((s, i) => [s, targets[i]]);
+}
+
+/**
+ * Moves the patches in User slots `sources` so the first lands on `target` and
+ * the rest follow in slot order; the patches in between shift up or down to
+ * close the gap. U1 to U4 count as one run of slots. Returns [from, to] pairs
+ * for the slots that change, or why it can't be done.
+ */
+export function movePlan(sources: string[], target: string): [string, string][] | string {
+  const moving = USER_SLOTS.filter((s) => sources.includes(s));
+  const rest = USER_SLOTS.filter((s) => !sources.includes(s));
+  const at = USER_SLOTS.indexOf(target);
+  if (at + moving.length > USER_SLOTS.length) {
+    return `There aren't ${moving.length} slots from ${target} to the end of U4.`;
+  }
+  const order = [...rest.slice(0, at), ...moving, ...rest.slice(at)];
+  return order.flatMap((from, i): [string, string][] => (from === USER_SLOTS[i] ? [] : [[from, USER_SLOTS[i]]]));
 }
 
 /** The slot `offset` places after `start` in the same bank, or null past program 99. */

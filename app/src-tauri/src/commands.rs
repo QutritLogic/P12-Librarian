@@ -948,12 +948,66 @@ pub async fn swap_programs(app: AppHandle, pairs: Vec<(String, String)>) -> CmdR
     .await
 }
 
+// ───────────────────────────── Moving ─────────────────────────────
+
+/// Maps each slot to the slot whose program it receives, from (from, to)
+/// pairs. The pairs must rearrange a set of User slots among themselves, so
+/// that no program is lost: every slot written to is also moved away from.
+fn move_sources(moves: &[(String, String)]) -> CmdResult<BTreeMap<Location, Location>> {
+    let mut sources = BTreeMap::new();
+    let mut from_slots = BTreeSet::new();
+    for (from, to) in moves {
+        let (from, to): (Location, Location) = (from.parse().str_err()?, to.parse().str_err()?);
+        for slot in [from, to] {
+            if !slot.is_user() {
+                return Err(read_only_error(slot));
+            }
+        }
+        if !from_slots.insert(from) {
+            return Err(format!("{from} can only be moved to one slot"));
+        }
+        if sources.insert(to, from).is_some() {
+            return Err(format!("Several patches would be moved to {to}"));
+        }
+    }
+    if sources.is_empty() {
+        return Err("Nothing to move".into());
+    }
+    if sources.keys().ne(from_slots.iter()) {
+        return Err("Those moves would overwrite patches that aren't moved anywhere".into());
+    }
+    Ok(sources)
+}
+
+/// Moves programs between User slots: each (from, to) pair writes the program
+/// in `from` to `to`. Used to move patches and shift the ones in between. Like
+/// a swap, it uses what is on the synth when it starts and is verified.
+#[tauri::command]
+pub async fn move_programs(app: AppHandle, moves: Vec<(String, String)>) -> CmdResult<WriteReport> {
+    blocking(app, move |app, state| {
+        let sources = move_sources(&moves)?;
+        let targets: BTreeSet<Location> = sources.keys().copied().collect();
+        with_synth(state, |synth| {
+            write_and_verify(
+                app,
+                state,
+                synth,
+                &targets,
+                ("Moving", "before-move"),
+                |location, _, current| Ok(current[&sources[&location]].clone()),
+            )
+        })
+    })
+    .await
+}
+
 // ───────────────────────────── Restore points ─────────────────────────────
 
 /// The automatic backups made before each kind of change, by file name prefix.
-const BACKUP_KINDS: [(&str, &str); 6] = [
+const BACKUP_KINDS: [(&str, &str); 7] = [
     ("before-write", "Write"),
     ("before-swap", "Swap"),
+    ("before-move", "Move"),
     ("before-rename", "Rename"),
     ("before-init", "Initialize"),
     ("before-layer-b", "Layer B copy"),
@@ -1127,6 +1181,22 @@ mod tests {
     }
 
     #[test]
+    fn move_sources_rearrange_slots_among_themselves() {
+        // U1:03 moves to U1:01; U1:01 and U1:02 shift down one place.
+        let moves = pairs(&[("U1:03", "U1:01"), ("U1:01", "U1:02"), ("U1:02", "U1:03")]);
+        let sources = move_sources(&moves).unwrap();
+        assert_eq!(sources[&"U1:01".parse().unwrap()], "U1:03".parse().unwrap());
+        // Across banks.
+        assert!(move_sources(&pairs(&[("U1:99", "U2:01"), ("U2:01", "U1:99")])).is_ok());
+        // U1:02 would be overwritten without going anywhere.
+        assert!(move_sources(&pairs(&[("U1:01", "U1:02")])).is_err());
+        assert!(move_sources(&pairs(&[("U1:01", "U1:02"), ("U1:01", "U1:03")])).is_err());
+        assert!(move_sources(&pairs(&[("U1:01", "U1:02"), ("U1:03", "U1:02")])).is_err());
+        assert!(move_sources(&pairs(&[("F1:01", "U1:01"), ("U1:01", "F1:01")])).is_err());
+        assert!(move_sources(&[]).is_err());
+    }
+
+    #[test]
     fn parses_backup_names() {
         assert_eq!(
             parse_backup_name("before-rename-20261008-210232.syx"),
@@ -1139,6 +1209,10 @@ mod tests {
         assert_eq!(
             parse_backup_name("before-swap-20261010-120000.syx"),
             Some(("Swap", "2026-10-10 12:00:00".to_string()))
+        );
+        assert_eq!(
+            parse_backup_name("before-move-20261023-120000.syx"),
+            Some(("Move", "2026-10-23 12:00:00".to_string()))
         );
         assert_eq!(parse_backup_name("Test.syx"), None);
         assert_eq!(parse_backup_name("before-write-2026.syx"), None);

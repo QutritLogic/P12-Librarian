@@ -9,7 +9,7 @@
   import AppearanceDialog from './lib/AppearanceDialog.svelte';
   import PreferencesDialog from './lib/PreferencesDialog.svelte';
   import RestoreDialog from './lib/RestoreDialog.svelte';
-  import SwapDialog from './lib/SwapDialog.svelte';
+  import RearrangeDialog from './lib/RearrangeDialog.svelte';
   import DisclaimerDialog from './lib/DisclaimerDialog.svelte';
   import LicencesDialog from './lib/LicencesDialog.svelte';
   import ContextMenu, { type MenuItem } from './lib/ContextMenu.svelte';
@@ -31,11 +31,14 @@
     isUserSlot,
     matchesSearch,
     matchesTags,
+    movePlan,
     noteName,
     onProgress,
     searchFilters,
     searchTags,
     searchTerms,
+    swapPlan,
+    type Rearrange,
     type SearchFilter,
     type Patch,
     type Ports,
@@ -104,7 +107,15 @@
   let renaming = $state<{ pane: Pane; title: string; patches: Patch[]; proposed: string[] } | null>(null);
   let initializing = $state<string[] | null>(null);
   let layerCopy = $state<{ source: Patch; target: string } | null>(null);
-  let swapping = $state<[string, string][] | null>(null);
+  /** A drop within the Prophet 12 pane, waiting for the user to choose swap or move. */
+  let rearranging = $state<{
+    sources: string[];
+    target: string;
+    swap: [string, string][] | string;
+    move: [string, string][] | string;
+  } | null>(null);
+  /** What the rearrange dialog offers first: the choice made last time. */
+  let rearrangeMode = $state<Rearrange>('swap');
   /** Patches whose tags are being edited. */
   let tagging = $state<Patch[] | null>(null);
   let renumbering = $state<{ patches: Patch[]; selectionOnly: boolean } | null>(null);
@@ -839,7 +850,7 @@
     const patches = ids.map(patchById).filter((p) => p !== undefined);
     // Within the Prophet 12 pane a drop rearranges; Ctrl, or a Factory patch, copies.
     if (zone === 'row' && info.sameTable && !info.copy && patches.every((p) => isUserSlot(p.location!))) {
-      startSwap(patches, row.location);
+      startRearrange(patches, row.location);
     } else if (zone === 'row') {
       startWrite(patches, row.location);
     } else if (patches.length !== 1) {
@@ -849,37 +860,43 @@
     }
   }
 
-  /**
-   * Pairs the dragged slots with consecutive slots from the drop target, and
-   * asks to swap them. The two groups must not overlap.
-   */
-  function startSwap(patches: Patch[], target: string) {
+  /** Asks whether to swap the dragged slots with those from the drop target, or move them there and shift. */
+  function startRearrange(patches: Patch[], target: string) {
     const sources = patches.map((p) => p.location!);
-    const bankOfTarget = target.slice(0, 2);
-    const slots = bankSlots(bankOfTarget);
-    const start = slots.indexOf(target);
-    const targets = slots.slice(start, start + sources.length);
-    if (sources.length === 1 && sources[0] === target) return; // dropped back where it was
-    if (targets.length < sources.length) {
-      message = { text: `There aren't ${sources.length} slots from ${target} to the end of ${bankOfTarget}.`, error: true };
-    } else if (targets.some((t) => sources.includes(t))) {
-      message = {
-        text: 'Those slots overlap the ones being dragged. Drop them on slots outside the selection to swap.',
-        error: true,
-      };
+    const swap = swapPlan(sources, target);
+    const move = movePlan(sources, target);
+    if (move.length === 0) return; // dropped back where it was
+    if (typeof swap === 'string' && typeof move === 'string') {
+      message = { text: rearrangeMode === 'swap' ? swap : move, error: true };
     } else {
-      swapping = sources.map((s, i) => [s, targets[i]]);
+      rearranging = { sources, target, swap, move };
     }
   }
 
-  function confirmSwap(pairs: [string, string][]) {
-    swapping = null;
-    return run('Swapping', async () => {
-      const report = await api.swapPrograms(pairs);
+  function confirmRearrange(mode: Rearrange, pairs: [string, string][]) {
+    rearranging = null;
+    if (mode !== rearrangeMode) api.setRearrange(mode);
+    rearrangeMode = mode;
+    if (mode === 'swap') {
+      return run('Swapping', async () => {
+        const report = await api.swapPrograms(pairs);
+        for (const p of report.written) synthPatches.set(p.location!, p);
+        const what = pairs.length === 1 ? `${pairs[0][0]} and ${pairs[0][1]}` : `${pairs.length} pairs of slots`;
+        changed(`Swapped and verified ${what}.`, report.backupPath);
+      });
+    }
+    return run('Moving', async () => {
+      const report = await api.movePrograms(pairs);
       for (const p of report.written) synthPatches.set(p.location!, p);
-      const what = pairs.length === 1 ? `${pairs[0][0]} and ${pairs[0][1]}` : `${pairs.length} pairs of slots`;
-      changed(`Swapped and verified ${what}.`, report.backupPath);
+      changed(`Moved and verified ${pairs.length} slots.`, report.backupPath);
     });
+  }
+
+  // Holding a dragged patch over a bank tab opens that bank, so patches can be dropped in another bank.
+  let tabTimer: ReturnType<typeof setTimeout> | undefined;
+  function dragOverTab(b: string | null) {
+    clearTimeout(tabTimer);
+    if (b && !synthSearching && b !== bank) tabTimer = setTimeout(() => (bank = b), 500);
   }
 
   function canDropOnSynth(row: Row, zone: DropZone): boolean {
@@ -1094,6 +1111,7 @@
   function applySettings(settings: Settings) {
     appearance = { theme: settings.theme, font: settings.font };
     auditionSettings = settings.audition;
+    rearrangeMode = settings.rearrange;
     if (!splitting) split = settings.split;
     document.documentElement.dataset.font = settings.font;
     document.documentElement.dataset.theme = settings.theme;
@@ -1119,7 +1137,7 @@
 
   function keydown(event: KeyboardEvent) {
     if (zoomKey(event)) return;
-    if (mustAccept || renaming || renumbering || writing || initializing || layerCopy || swapping || tagging || dialog || contextMenu)
+    if (mustAccept || renaming || renumbering || writing || initializing || layerCopy || rearranging || tagging || dialog || contextMenu)
       return;
     if (event.ctrlKey && event.key.toLowerCase() === 'f') {
       event.preventDefault();
@@ -1384,6 +1402,9 @@
             class:active={!synthSearching && bank === b}
             class:factory={!isUserSlot(b)}
             onclick={() => ((bank = b), (synthSearch = ''), (synthFavOnly = false), (synthSelected = []))}
+            ondragenter={() => dragOverTab(b)}
+            ondragleave={(e) => !(e.currentTarget as Element).contains(e.relatedTarget as Node) && dragOverTab(null)}
+            ondrop={() => dragOverTab(null)}
             title={tabTitle(b)}
           >
             {b}
@@ -1600,12 +1621,13 @@
   {#if version}<span class="version" title="P12 Librarian {version}">v{version}</span>{/if}
 </footer>
 
-{#if swapping}
-  <SwapDialog
-    pairs={swapping}
+{#if rearranging}
+  <RearrangeDialog
+    {...rearranging}
+    initial={rearrangeMode}
     currentName={(location) => synthPatches.get(location)?.name}
-    onConfirm={confirmSwap}
-    onCancel={() => (swapping = null)}
+    onConfirm={confirmRearrange}
+    onCancel={() => (rearranging = null)}
   />
 {/if}
 
