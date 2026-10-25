@@ -101,14 +101,18 @@ P12 Librarian is a desktop app for managing the programs (patches) stored in a D
 Prophet 12. It talks to the synth over MIDI SysEx and lets you:
 
 - *back up* all User banks, or any selection, to standard `.syx` files;
-- *browse and search* every program by name;
+- *browse and search* every program by name, and find them again with *tags and favourites*;
 - *audition* patches from a file without storing them;
 - *write* patches to any User slot, including into *Layer B* of an existing program;
+- *rearrange* patches on the synth: swap them, or move them and shift the rest;
+- *compare* the synth with a backup, and find duplicates;
+- *edit* `.syx` patch lists without a synth;
 - *rename* patches, and *clean up* names typed in capitals on the synth;
-- *initialize* slots with the synth's Basic Patch.
+- *initialize* slots with the synth's Basic Patch;
+- *print* bank sheets, or export them for a spreadsheet.
 
 Every write is protected the same way: the slots about to change are read and saved first, and every written
-program is read back from the synth and compared with what was sent (@safety).
+program is read back from the synth and compared with what was sent. Any change can be undone (@safety).
 
 *Use at your own risk.* Writing to the synth replaces the programs stored there, and data can be lost. Keep your
 own backups. The app asks you to accept the disclaimer the first time it starts (@disclaimer).
@@ -703,7 +707,9 @@ Zoom (80–250%), font and theme are remembered.
     the list],
   [#key("↓") in a search box], [Jump to the first result],
   [#key("Ctrl", "Z")], [Undo the last change on the synth],
+  [#key("Ctrl") + drag], [Copy patches instead of moving them],
   [#key("Ctrl", ",")], [Preferences (audition note)],
+  [#key("Ctrl", "Shift", "A")], [Appearance (theme and font)],
   [#key("F1")], [Open this guide],
   [#key("Ctrl", "+") #key("Ctrl", "−") #key("Ctrl", "0")], [Zoom in, out, actual size],
   [#key("Esc")], [Close a dialog or menu; clear a search; clear the selection],
