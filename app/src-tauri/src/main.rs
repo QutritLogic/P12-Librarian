@@ -19,7 +19,7 @@ fn main() {
         .setup(|app| {
             let handle = app.handle();
             let saved = settings::load(handle);
-            *handle.state::<settings::SettingsState>().0.lock().unwrap() = saved.clone();
+            *handle.state::<settings::SettingsState>().0.lock().unwrap_or_else(|p| p.into_inner()) = saved.clone();
             settings::apply(handle, &saved);
             Ok(())
         })

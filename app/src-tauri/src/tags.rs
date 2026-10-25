@@ -128,7 +128,7 @@ fn apply(tags: &mut Tags, change: Change) {
 /// All tags and favourites, by fingerprint.
 #[tauri::command]
 pub fn get_tags(app: AppHandle, state: tauri::State<'_, TagState>) -> Tags {
-    let mut tags = state.0.lock().unwrap();
+    let mut tags = state.0.lock().unwrap_or_else(|p| p.into_inner());
     tags.get_or_insert_with(|| load(&app)).clone()
 }
 
@@ -139,7 +139,7 @@ pub fn update_tags(
     state: tauri::State<'_, TagState>,
     changes: Vec<Change>,
 ) -> Result<Tags, String> {
-    let mut guard = state.0.lock().unwrap();
+    let mut guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
     let mut tags = guard.get_or_insert_with(|| load(&app)).clone();
     for change in changes {
         apply(&mut tags, change);
