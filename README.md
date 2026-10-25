@@ -2,7 +2,24 @@
 
 A patch librarian for the Sequential (Dave Smith Instruments) Prophet 12.
 
-Back up, browse and restore programs on a Sequential Prophet 12 over SysEx.
+Back up, browse, search, rename and rearrange the programs on a Prophet 12 over MIDI SysEx, compare
+the synth with a backup and edit `.syx` files. Every write to the synth is backed up first and
+verified afterwards, and can be undone. Runs on Linux and Windows and works offline.
+
+- **Download:** <https://qutrit.se/p12-librarian/> (Linux `.deb` and AppImage, Windows installer)
+- **User guide:** [PDF](app/src-tauri/resources/user-guide.pdf), also in the app (F1)
+- **Changes:** [CHANGELOG.md](CHANGELOG.md)
+- **Contact:** qutritlogic@proton.me
+
+P12 Librarian is **freeware**, not open source. The source code is published so you can see how it
+works, check what it sends to your synth and build it yourself, but the
+[P12 Librarian Freeware Licence](LICENSE) doesn't allow redistributing or modifying it. See also
+the [disclaimer](DISCLAIMER.md) and the [third-party notices](THIRD-PARTY-NOTICES.md). Not
+affiliated with Sequential or Dave Smith Instruments.
+
+The rest of this file is for building and developing the app.
+
+## Layout
 
 ```
 crates/
