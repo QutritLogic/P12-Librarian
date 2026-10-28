@@ -5,6 +5,9 @@
 //! banks. Virtual ports exist on macOS (CoreMIDI) and Linux (ALSA), not on
 //! Windows.
 
+// On Windows `run` only reports that, so the simulator itself goes unused.
+#![cfg_attr(not(unix), allow(dead_code, unused_imports))]
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
