@@ -14,6 +14,8 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-28
+
 ### Changed
 
 - P12 Librarian is now open source under the MIT License, replacing the freeware licence. The source code is on
@@ -207,7 +209,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/QutritLogic/P12-Librarian/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.11.0...v1.0.0
 [0.11.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.9.0...v0.10.0

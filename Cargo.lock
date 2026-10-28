@@ -2585,7 +2585,7 @@ dependencies = [
 
 [[package]]
 name = "p12-cli"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2596,14 +2596,14 @@ dependencies = [
 
 [[package]]
 name = "p12-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "thiserror 2.0.21",
 ]
 
 [[package]]
 name = "p12-librarian"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "chrono",
  "gdk",
@@ -2620,7 +2620,7 @@ dependencies = [
 
 [[package]]
 name = "p12-midi"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "midir",
  "p12-core",
@@ -2629,7 +2629,7 @@ dependencies = [
 
 [[package]]
 name = "p12-sim"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "clap",
