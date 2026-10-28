@@ -37,7 +37,7 @@ app/
 One-time setup (Linux Mint / Ubuntu):
 
 ```bash
-sudo apt install libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev
+sudo apt install libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev libasound2-dev
 cd app && npm install
 ```
 
