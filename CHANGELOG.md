@@ -3,15 +3,27 @@
 All notable changes to P12 Librarian are listed here, newest first.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
-project uses [Semantic Versioning](https://semver.org/). While the version starts with 0,
-new features and breaking changes raise the middle number (0.3.0 → 0.4.0) and bug fixes
-raise the last one (0.3.0 → 0.3.1).
+project uses [Semantic Versioning](https://semver.org/): changes that break existing files or
+behaviour raise the first number (1.0.0 → 2.0.0), new features the middle one (1.0.0 → 1.1.0)
+and bug fixes the last one (1.0.0 → 1.0.1). Before 1.0, new features and breaking changes
+raised the middle number and bug fixes the last one.
 
 Each release lists its changes under these headings, as needed: **Added** (new
 features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 **Removed** (features taken out) and **Security**.
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-10-28
+
+### Changed
+
+- The user guide's introduction lists every feature, and its shortcut table includes Ctrl+drag (copy) and
+  Ctrl+Shift+A (Appearance).
+
+### Fixed
+
+- A failed tag or settings command can no longer make later tag changes fail as well.
 
 ## [0.11.0] - 2026-10-23
 
@@ -189,7 +201,8 @@ Instruments) Prophet 12.
 - A PDF user guide (F1) and the `p12` command-line tool.
 - The Debian package `p12-librarian` for Linux Mint and Ubuntu (amd64).
 
-[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/QutritLogic/P12-Librarian/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.11.0...v1.0.0
 [0.11.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/QutritLogic/P12-Librarian/compare/v0.8.2...v0.9.0

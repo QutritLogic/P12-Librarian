@@ -5,7 +5,7 @@ members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli", "crates/p12-s
 default-members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli", "crates/p12-sim"]
 
 [workspace.package]
-version = "0.11.0"
+version = "1.0.0"
 edition = "2024"
 # Freeware, see LICENSE. Not published to crates.io.
 license-file = "LICENSE"
