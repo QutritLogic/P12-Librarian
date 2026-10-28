@@ -7,6 +7,10 @@ the synth with a backup and edit `.syx` files. Every write to the synth is backe
 verified afterwards, and can be undone. Runs on Linux and Windows and works offline. There is no
 macOS release, but it builds on macOS from source ([docs/macos.md](docs/macos.md)).
 
+[![P12 Librarian reading a bank, tagging a patch, swapping patches on the synth and writing one from a file](docs/showcase.webp)](https://qutrit.se/assets/p12-showcase.mp4)
+
+*Click the picture for a 90-second video of the app in use (qutrit.se).*
+
 - **Download:** <https://qutrit.se/p12-librarian/> (Linux `.deb` and AppImage, Windows installer)
 - **User guide:** [PDF](app/src-tauri/resources/user-guide.pdf), also in the app (F1)
 - **Changes:** [CHANGELOG.md](CHANGELOG.md)
