@@ -1,8 +1,8 @@
 # P12 Librarian: notes for Claude Code
 
-A patch librarian for the Sequential (Dave Smith Instruments) Prophet 12, published as freeware
-by **Qutrit** (qutritlogic@proton.me) at <https://qutrit.se>. Start with `README.md`; on macOS
-also `docs/macos.md`.
+A patch librarian for the Sequential (Dave Smith Instruments) Prophet 12, open source under the
+MIT License, by **Qutrit** (qutritlogic@proton.me) at <https://qutrit.se>. Start with
+`README.md`; on macOS also `docs/macos.md`.
 
 ## Working on this repo
 
@@ -20,9 +20,9 @@ also `docs/macos.md`.
 
 - **No names.** The project is credited to "Qutrit" only. Don't add people's names to code,
   docs, package metadata or credits.
-- **Freeware, not open source.** `LICENSE` is the P12 Librarian Freeware Licence. Never describe
-  the app as open source or MIT. New dependencies must have a licence listed in
-  `licenses/about.toml` (Rust); `licenses/rust.md` is generated, don't edit it by hand.
+- **MIT License.** `LICENSE` is the MIT License, copyright Qutrit. New dependencies must have a
+  permissive licence listed in `licenses/about.toml` (Rust); `licenses/rust.md` is generated,
+  don't edit it by hand.
 - **No network connections.** The app works offline and promises not to connect anywhere: no
   update checks, telemetry, crash reports, fonts or scripts from the web.
 - **Changelog.** Every change a user would notice (feature, behaviour, fix) gets a line under

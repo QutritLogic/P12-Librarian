@@ -1,5 +1,5 @@
 # cargo-about configuration for the third-party licence list (see licenses/generate.sh).
-# Only licences that allow use in free, closed-source software are accepted;
+# Only permissive licences, compatible with P12 Librarian's MIT License, are accepted;
 # a dependency under any other licence makes the generation fail.
 accepted = [
     "MIT",

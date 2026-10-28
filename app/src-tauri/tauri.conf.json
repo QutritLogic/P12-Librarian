@@ -38,13 +38,13 @@
       "icons/icon.png",
       "icons/icon.icns"
     ],
-    "license": "LicenseRef-P12-Librarian-Freeware",
+    "license": "MIT",
     "licenseFile": "../../LICENSE",
     "resources": [
       "resources/user-guide.pdf"
     ],
     "publisher": "Qutrit",
-    "copyright": "Copyright (c) 2026 Qutrit. Freeware, see LICENSE.",
+    "copyright": "Copyright (c) 2026 Qutrit. MIT License, see LICENSE.",
     "category": "Music",
     "homepage": "https://qutrit.se/p12-librarian/",
     "shortDescription": "Patch librarian for the Sequential Prophet 12",

@@ -14,6 +14,12 @@ features), **Changed** (changes to existing behaviour), **Fixed** (bug fixes),
 
 ## [Unreleased]
 
+### Changed
+
+- P12 Librarian is now open source under the MIT License, replacing the freeware licence. The source code is on
+  GitHub: <https://github.com/QutritLogic/P12-Librarian>. The disclaimer names the new licence, so the app asks
+  to accept it again.
+
 ## [1.0.0] - 2026-10-28
 
 ### Changed
