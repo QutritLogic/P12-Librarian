@@ -788,8 +788,8 @@ company is now called Sequential:
 
 This project is not affiliated with Sequential or Dave Smith Instruments. Prophet 12 is a trademark of its owner.
 
-P12 Librarian is *freeware*: free to use, including for professional work, but not to redistribute or modify.
-Get it from the website. The full licence, and the licences of the libraries, fonts and themes it includes, are
+P12 Librarian is free and open source under the *MIT License*: you may use, change and share it, including for
+professional work. The source code is on GitHub: #link("https://github.com/QutritLogic/P12-Librarian"). The full licence, and the licences of the libraries, fonts and themes it includes, are
 under #ui[Help → Licences].
 
 // The text comes from DISCLAIMER.md, the same file the app shows.

@@ -12,7 +12,7 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 /// Version of DISCLAIMER.md that users must accept before using the app.
 /// Increase it whenever the disclaimer text changes, so everyone is asked
 /// again.
-pub const DISCLAIMER_VERSION: u32 = 3;
+pub const DISCLAIMER_VERSION: u32 = 4;
 
 const ZOOM_STEPS: [f64; 9] = [0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5];
 

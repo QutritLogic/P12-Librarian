@@ -1,7 +1,7 @@
 # Third-Party Notices
 
 P12 Librarian includes libraries, colour themes and fonts made by others,
-under their own licences. P12 Librarian itself is freeware (see LICENSE);
+under their own licences. P12 Librarian itself is under the MIT License (see LICENSE);
 nothing in its licence limits the rights these licences give you.
 
 ## Libraries

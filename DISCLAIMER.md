@@ -22,7 +22,7 @@ Some jurisdictions do not allow certain warranties to be excluded or certain lia
 
 ## 6. Free of charge, non-commercial
 
-The Software is provided free of charge, outside of any commercial activity, under the P12 Librarian Freeware Licence that comes with it (LICENSE). This disclaimer forms part of that licence.
+The Software is provided free of charge, outside of any commercial activity, under the MIT License that comes with it (LICENSE). This disclaimer applies in addition to that licence. Copies built or distributed by others are not provided by the author.
 
 ## 7. No affiliation
 

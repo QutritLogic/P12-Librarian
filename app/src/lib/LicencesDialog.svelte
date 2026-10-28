@@ -20,7 +20,7 @@
 
 <Modal title="Licences" width="820px" {onClose}>
   <p class="muted">
-    P12 Librarian is freeware. It includes libraries, fonts and colour themes by other authors under their own
+    P12 Librarian is under the MIT License. It includes libraries, fonts and colour themes by other authors under their own
     licences, which this licence doesn't limit.
   </p>
   <div class="tabs" role="tablist">

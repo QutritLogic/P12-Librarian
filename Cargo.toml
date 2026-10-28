@@ -7,8 +7,8 @@ default-members = ["crates/p12-core", "crates/p12-midi", "crates/p12-cli", "crat
 [workspace.package]
 version = "1.0.0"
 edition = "2024"
-# Freeware, see LICENSE. Not published to crates.io.
-license-file = "LICENSE"
+# MIT, see LICENSE. Not published to crates.io.
+license = "MIT"
 publish = false
 
 [workspace.dependencies]

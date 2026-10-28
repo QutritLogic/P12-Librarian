@@ -62,7 +62,7 @@
     Not affiliated with Sequential or Dave Smith Instruments. Prophet 12 is a trademark of its owner.
   </p>
   <p class="muted small">
-    Freeware: free to use, not to redistribute or modify; get it from qutrit.se. Provided as is, without
+    Free and open source under the MIT License; the source code is on GitHub. Provided as is, without
     warranty; use at your own risk. See Help → Licences and Help → Disclaimer.
   </p>
 
