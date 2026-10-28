@@ -2,7 +2,7 @@
 
 A patch librarian for the Sequential (Dave Smith Instruments) Prophet 12, open source under the
 MIT License, by **Qutrit** (qutritlogic@proton.me) at <https://qutrit.se>. Start with
-`README.md`; on macOS also `docs/macos.md`.
+`README.md` and `CONTRIBUTING.md`; on macOS also `docs/macos.md`.
 
 ## Working on this repo
 
