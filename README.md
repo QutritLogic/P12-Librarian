@@ -85,7 +85,7 @@ CLI, so they work without the webkit packages.
 See [docs/macos.md](docs/macos.md): prerequisites for macOS 11 Big Sur and newer, building, and
 testing with the simulator. Qutrit doesn't build or test for macOS. Anyone may build it and share
 their builds under the MIT License, and pull requests that improve it on macOS are welcome.
-Contributions are accepted under the same licence.
+Contributions are accepted under the same licence; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Testing without the synth
 
