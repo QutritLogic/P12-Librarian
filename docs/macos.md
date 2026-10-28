@@ -100,7 +100,9 @@ npm run tauri build -- --bundles app
 # -> ../target/release/bundle/macos/P12 Librarian.app
 ```
 
-The app isn't signed, so the first time, right-click it in Finder and choose Open.
+A copy you built yourself opens normally. A copy built by someone else isn't signed, so macOS blocks
+it the first time: right-click it in Finder and choose Open, or, on macOS 15 Sequoia and newer,
+try to open it once, then choose Open Anyway in System Settings → Privacy & Security.
 
 ## Known differences on macOS
 
